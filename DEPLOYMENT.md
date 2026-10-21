@@ -56,9 +56,19 @@ Render natively builds and runs the project's [Dockerfile](file:///c:/Users/spfa
 7. Render will build the multi-stage Docker container and give you a public URL like:
    `https://copilops-aip.onrender.com`
 
+### Environment Variables for Render.com
+
+| Variable Name | Value | Purpose |
+|---|---|---|
+| `NODE_ENV` | `production` | Enables production Express mode |
+| `PORT` | `5000` | Port listened to by container |
+| `MONGODB_URI` | `mongodb+srv://...` | Connection string from MongoDB Atlas (Optional: falls back to embedded data if omitted) |
+
+> For the full 28-day AIRAC refresh and automation lifecycle, see [AUTOMATION.md](file:///c:/Users/spfar/Desktop/copilops-aip/AUTOMATION.md).
+
 ---
 
-## 3. Option 2: Vercel (Instant Zero-Config Frontend Demo)
+## 3. Option 2: GitHub Pages (Instant Free Portfolio Demo)
 
 If you need a live public URL in under 2 minutes:
 

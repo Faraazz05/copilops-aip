@@ -1,0 +1,55 @@
+name: AIRAC 28-Day Automated Cycle Pipeline
+
+on:
+  schedule:
+    # Runs every Thursday at 00:00 UTC to check for active AIRAC publication cycles
+    - cron: '0 0 * * 4'
+  workflow_dispatch:
+    inputs:
+      effective_date:
+        description: 'New AIRAC Effective Date (YYYY-MM-DD)'
+        required: false
+        default: '2026-10-01'
+      previous_date:
+        description: 'Previous AIRAC Date for diff (YYYY-MM-DD)'
+        required: false
+        default: '2026-09-04'
+
+permissions:
+  contents: write
+
+jobs:
+  airac-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Execute Automated AIRAC Cycle Orchestrator
+        run: |
+          python scripts/airac_cycle_manager.py \
+            --effective "${{ github.event.inputs.effective_date || '2026-10-01' }}" \
+            --previous "${{ github.event.inputs.previous_date || '2026-09-04' }}"
+
+      - name: Commit & Push Updated Data to Repository
+        run: |
+          git config user.name "CopilOPS AIRAC Bot"
+          git config user.email "bot@copilops.internal"
+          git add server/data/aeronautical_data.json data/aip.db
+          if git diff --staged --quiet; then
+            echo "No changes detected for this AIRAC cycle."
+          else
+            git commit -m "chore(airac): auto-update aeronautical data for cycle ${{ github.event.inputs.effective_date || '2026-10-01' }}"
+            git push
+          fi
