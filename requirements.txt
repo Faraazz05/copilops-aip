@@ -1,0 +1,6 @@
+beautifulsoup4
+lxml
+pytest
+pandas
+folium
+numpy

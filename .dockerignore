@@ -1,0 +1,14 @@
+node_modules
+*/node_modules
+.git
+.gitignore
+.aip
+.pytest_cache
+*.pyc
+__pycache__
+*/__pycache__
+dist
+*/dist
+data/raw
+explore_out.txt
+*.log

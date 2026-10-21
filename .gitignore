@@ -1,0 +1,60 @@
+# ==============================================================================
+# CopilOPS AIP Platform - Git Ignore Rules
+# Author: Mohd Faraz (https://faraazz05.github.io)
+# ==============================================================================
+
+# Python Virtual Environments & Packages
+.aip/
+venv/
+env/
+ENV/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Byte-compiled / optimized / test cache files
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js dependencies & builds
+node_modules/
+client/node_modules/
+server/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Server build output
+server/dist/
+
+# Environment and sensitive keys
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Operating System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDE & Editor configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Large raw AIP data packages (keep extracted aip.db and JSON)
+data/raw/
+explore_out.txt
+*.log
