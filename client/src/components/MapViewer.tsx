@@ -47,21 +47,30 @@ const TARGET_COORDS: Record<string, [number, number]> = {
   EBCI: [50.459200, 4.453819],
 };
 
-// Basemap Tile Providers
+// Basemap Tile Providers (Esri Light Gray Canvas is 100% free with no API key or watermarks)
 const BASEMAP_TILES = {
+  esriLight: {
+    name: "Light Neutral Canvas",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    refUrl: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+    attribution:
+      'Tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a> &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16,
+  },
+  osm: {
+    name: "OpenStreetMap",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  },
   positron: {
     name: "CARTO Positron",
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
     subdomains: "abcd",
-  },
-  osm: {
-    name: "OpenStreetMap",
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-    subdomains: "abc",
+    maxZoom: 19,
   },
 };
 
@@ -117,8 +126,10 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   const [showTmaCta, setShowTmaCta] = useState(true);
   const [showRestricted, setShowRestricted] = useState(false);
 
-  // Basemap Selection
-  const [basemapKey, setBasemapKey] = useState<"positron" | "osm">("positron");
+  // Basemap Selection (Default: Light Neutral Canvas - 100% free with no watermarks)
+  const [basemapKey, setBasemapKey] = useState<"esriLight" | "osm" | "positron">("esriLight");
+  const [cartoKey, setCartoKey] = useState<string>(() => localStorage.getItem("copilops_carto_key") || "");
+  const [showCartoKeyInput, setShowCartoKeyInput] = useState(false);
 
   // Route Selection & Highlighting
   const [selectedRouteName, setSelectedRouteName] = useState<string | null>(null);
@@ -389,30 +400,81 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         {layersOpen && (
           <div className="p-3 pt-0 space-y-2 border-t border-[#26374B]/60">
             {/* Basemap Style Selector */}
-            <div className="pt-2 pb-2 flex items-center justify-between text-[11px] text-[#A5B3C4] border-b border-[#26374B]/40">
-              <span className="font-medium">Basemap:</span>
-              <div className="flex gap-1 font-mono text-[10px]">
-                <button
-                  onClick={() => setBasemapKey("positron")}
-                  className={`px-2 py-0.5 rounded transition-colors ${
-                    basemapKey === "positron"
-                      ? "bg-[#37C9D6] text-[#070D18] font-bold"
-                      : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
-                  }`}
-                >
-                  Positron
-                </button>
-                <button
-                  onClick={() => setBasemapKey("osm")}
-                  className={`px-2 py-0.5 rounded transition-colors ${
-                    basemapKey === "osm"
-                      ? "bg-[#37C9D6] text-[#070D18] font-bold"
-                      : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
-                  }`}
-                >
-                  OSM
-                </button>
+            <div className="pt-2 pb-2 text-[11px] text-[#A5B3C4] border-b border-[#26374B]/40 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Basemap Style:</span>
+                <div className="flex gap-1 font-mono text-[10px]">
+                  <button
+                    onClick={() => setBasemapKey("esriLight")}
+                    className={`px-2 py-0.5 rounded transition-colors ${
+                      basemapKey === "esriLight"
+                        ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                        : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
+                    }`}
+                    title="Light neutral canvas with zero watermark (no key required)"
+                  >
+                    Light Canvas
+                  </button>
+                  <button
+                    onClick={() => setBasemapKey("osm")}
+                    className={`px-2 py-0.5 rounded transition-colors ${
+                      basemapKey === "osm"
+                        ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                        : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
+                    }`}
+                    title="OpenStreetMap Standard (no key required)"
+                  >
+                    OSM
+                  </button>
+                  <button
+                    onClick={() => {
+                      setBasemapKey("positron");
+                      if (!cartoKey) setShowCartoKeyInput(true);
+                    }}
+                    className={`px-2 py-0.5 rounded transition-colors ${
+                      basemapKey === "positron"
+                        ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                        : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
+                    }`}
+                    title="CARTO Positron (requires free API key from carto.com/basemaps/apikey)"
+                  >
+                    CARTO
+                  </button>
+                </div>
               </div>
+
+              {/* Optional CARTO Key Input if user selects CARTO */}
+              {basemapKey === "positron" && (
+                <div className="bg-[#070D18] p-2 rounded border border-[#26374B] text-[10px] space-y-1">
+                  <div className="flex items-center justify-between text-[#74869C]">
+                    <span>CARTO API Key:</span>
+                    <a
+                      href="https://carto.com/basemaps/apikey/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#37C9D6] hover:underline flex items-center gap-0.5"
+                    >
+                      Get Free Key <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                  <input
+                    type="password"
+                    placeholder="Paste CARTO API key..."
+                    value={cartoKey}
+                    onChange={(e) => {
+                      const val = e.target.value.trim();
+                      setCartoKey(val);
+                      localStorage.setItem("copilops_carto_key", val);
+                    }}
+                    className="w-full bg-[#121F31] border border-[#26374B] rounded px-1.5 py-0.5 text-[#F1F5FA] font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-[#37C9D6]"
+                  />
+                  {!cartoKey && (
+                    <p className="text-[#E9B45B] text-[9px] leading-tight">
+                      Tip: Switch to <b>Light Canvas</b> for zero-watermark neutral map with no API key.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Aerodromes Group */}
@@ -794,13 +856,44 @@ export const MapViewer: React.FC<MapViewerProps> = ({
           onFitComplete={() => setFitBoundsTarget(null)}
         />
 
-        {/* Selected Basemap TileLayer (CartoDB Positron default) */}
-        <TileLayer
-          attribution={BASEMAP_TILES[basemapKey].attribution}
-          url={BASEMAP_TILES[basemapKey].url}
-          subdomains={BASEMAP_TILES[basemapKey].subdomains}
-          maxZoom={19}
-        />
+        {/* Selected Basemap TileLayer */}
+        {basemapKey === "positron" ? (
+          <TileLayer
+            key={`carto-${cartoKey}`}
+            attribution={BASEMAP_TILES.positron.attribution}
+            url={
+              cartoKey
+                ? `${BASEMAP_TILES.positron.url}?key=${cartoKey}`
+                : BASEMAP_TILES.positron.url
+            }
+            subdomains={BASEMAP_TILES.positron.subdomains}
+            maxZoom={19}
+          />
+        ) : basemapKey === "esriLight" ? (
+          <>
+            <TileLayer
+              key="esri-base"
+              attribution={BASEMAP_TILES.esriLight.attribution}
+              url={BASEMAP_TILES.esriLight.url}
+              maxZoom={16}
+            />
+            {BASEMAP_TILES.esriLight.refUrl && (
+              <TileLayer
+                key="esri-ref"
+                url={BASEMAP_TILES.esriLight.refUrl}
+                maxZoom={16}
+                opacity={0.85}
+              />
+            )}
+          </>
+        ) : (
+          <TileLayer
+            key="osm"
+            attribution={BASEMAP_TILES.osm.attribution}
+            url={BASEMAP_TILES.osm.url}
+            maxZoom={19}
+          />
+        )}
 
         {/* 1. Controlled Airspace (TMA / CTA Polygons) */}
         {showTmaCta &&
