@@ -90,8 +90,11 @@ export const AirwaysViewer: React.FC<AirwaysViewerProps> = ({ routes }) => {
                   <h3 className="text-2xl font-mono font-extrabold text-amber-400">
                     AIRWAY {selectedRoute.designator}
                   </h3>
-                  <p className="text-sm text-slate-400 mt-1">
-                    Navigation Specification: <span className="font-semibold text-white">{selectedRoute.rnp_type}</span> | Availability: <span className="text-white">{selectedRoute.availability}</span>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Navigation Specification: <span className="font-semibold text-white">{selectedRoute.rnp_type || "Unspecified"}</span> | Availability: <span className="text-white">{selectedRoute.availability || "Not Published"}</span>
+                  </p>
+                  <p className="text-[11px] text-amber-300/80 mt-1">
+                    ⚠️ <b>Operational Note:</b> Polyline geometry connects published fixes in sequence (ENR 3.2 / ENR 4.4); it does not represent an officially surveyed or certified route centerline.
                   </p>
                 </div>
                 <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs font-mono text-slate-300">

@@ -1,4 +1,4 @@
-import { IAirport, IRoute, INavaid, IWaypoint, IIssue, IChange } from "./types";
+import { IAirport, IRoute, INavaid, IWaypoint, IIssue, IChange, IAirspace } from "./types";
 
 const API_BASE = "/api";
 
@@ -7,7 +7,20 @@ export async function fetchHealth() {
     const res = await fetch(`${API_BASE}/health`);
     if (res.ok) return await res.json();
   } catch {}
-  return { status: "local", edition: "2026-10-01" };
+  return {
+    status: "local",
+    edition: "2026-10-01",
+    counts: {
+      airports_count: 33,
+      runways_count: 96,
+      routes_count: 51,
+      navaids_count: 82,
+      waypoints_count: 303,
+      airspaces_count: 130,
+      valid_airspaces_count: 63,
+      issues_count: 137
+    }
+  };
 }
 
 export async function fetchAirports(targetOnly: boolean = false): Promise<IAirport[]> {
@@ -19,10 +32,9 @@ export async function fetchAirports(targetOnly: boolean = false): Promise<IAirpo
       return data.data;
     }
   } catch {}
-  // Static fallback
   const fallback = await import("../../server/data/aeronautical_data.json");
   const list = fallback.airports as unknown as IAirport[];
-  return targetOnly ? list.filter(a => a.is_target) : list;
+  return targetOnly ? list.filter((a) => a.is_target) : list;
 }
 
 export async function fetchAirport(icao: string): Promise<IAirport | null> {
@@ -32,7 +44,7 @@ export async function fetchAirport(icao: string): Promise<IAirport | null> {
   } catch {}
   const fallback = await import("../../server/data/aeronautical_data.json");
   const list = fallback.airports as unknown as IAirport[];
-  return list.find(a => a.icao === icao.toUpperCase()) || null;
+  return list.find((a) => a.icao === icao.toUpperCase()) || null;
 }
 
 export async function fetchRoutes(): Promise<IRoute[]> {
@@ -44,7 +56,7 @@ export async function fetchRoutes(): Promise<IRoute[]> {
     }
   } catch {}
   const fallback = await import("../../server/data/aeronautical_data.json");
-  return fallback.routes as IRoute[];
+  return fallback.routes as unknown as IRoute[];
 }
 
 export async function fetchNavaids(): Promise<INavaid[]> {
@@ -56,19 +68,34 @@ export async function fetchNavaids(): Promise<INavaid[]> {
     }
   } catch {}
   const fallback = await import("../../server/data/aeronautical_data.json");
-  return fallback.navaids as INavaid[];
+  return fallback.navaids as unknown as INavaid[];
 }
 
 export async function fetchWaypoints(limit: number = 500): Promise<IWaypoint[]> {
   try {
-    const res = await fetch(`${API_BASE}/waypoints?limit=${limit}`);
+    const url = limit ? `${API_BASE}/waypoints?limit=${limit}` : `${API_BASE}/waypoints`;
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       return data.data;
     }
   } catch {}
   const fallback = await import("../../server/data/aeronautical_data.json");
-  return (fallback.waypoints as IWaypoint[]).slice(0, limit);
+  return (fallback.waypoints as unknown as IWaypoint[]).slice(0, limit);
+}
+
+export async function fetchAirspaces(validOnly: boolean = false): Promise<IAirspace[]> {
+  try {
+    const url = validOnly ? `${API_BASE}/airspaces?valid_only=true` : `${API_BASE}/airspaces`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      return data.data;
+    }
+  } catch {}
+  const fallback = await import("../../server/data/aeronautical_data.json");
+  const list = (fallback.airspaces || []) as unknown as IAirspace[];
+  return validOnly ? list.filter((a) => a.geometry !== null) : list;
 }
 
 export async function fetchChanges(): Promise<IChange[]> {
@@ -80,7 +107,7 @@ export async function fetchChanges(): Promise<IChange[]> {
     }
   } catch {}
   const fallback = await import("../../server/data/aeronautical_data.json");
-  return fallback.changes as IChange[];
+  return fallback.changes as unknown as IChange[];
 }
 
 export async function fetchIssues(): Promise<IIssue[]> {
@@ -92,5 +119,5 @@ export async function fetchIssues(): Promise<IIssue[]> {
     }
   } catch {}
   const fallback = await import("../../server/data/aeronautical_data.json");
-  return fallback.issues as IIssue[];
+  return fallback.issues as unknown as IIssue[];
 }

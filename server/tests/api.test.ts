@@ -68,4 +68,18 @@ describe("CopilOPS Aeronautical Data API Tests", () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
   });
+
+  it("GET /api/airspaces should return extracted airspaces with verified geometries", async () => {
+    const res = await request(app).get("/api/airspaces");
+    expect(res.status).toBe(200);
+    expect(res.body.count).toBeGreaterThan(0);
+    expect(res.body.valid_count).toBeGreaterThan(0);
+    expect(Array.isArray(res.body.data)).toBe(true);
+
+    // Verify presence of verified special-use airspace
+    const restricted = res.body.data.find((a: any) => a.designation === "EBR02");
+    expect(restricted).toBeDefined();
+    expect(restricted.geometry).toBeDefined();
+    expect(restricted.geometry.type).toBe("Polygon");
+  });
 });

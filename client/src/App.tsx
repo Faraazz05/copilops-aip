@@ -11,12 +11,13 @@ import { AirportDashboard } from "./components/AirportDashboard";
 import { AirwaysViewer } from "./components/AirwaysViewer";
 import { AiracDiffViewer } from "./components/AiracDiffViewer";
 import { DataQualityViewer } from "./components/DataQualityViewer";
-import { IAirport, IRoute, INavaid, IWaypoint, IIssue, IChange } from "./types";
+import { IAirport, IRoute, INavaid, IWaypoint, IIssue, IChange, IAirspace } from "./types";
 import {
   fetchAirports,
   fetchRoutes,
   fetchNavaids,
   fetchWaypoints,
+  fetchAirspaces,
   fetchChanges,
   fetchIssues,
   fetchHealth
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
   const [routes, setRoutes] = useState<IRoute[]>([]);
   const [navaids, setNavaids] = useState<INavaid[]>([]);
   const [waypoints, setWaypoints] = useState<IWaypoint[]>([]);
+  const [airspaces, setAirspaces] = useState<IAirspace[]>([]);
   const [changes, setChanges] = useState<IChange[]>([]);
   const [issues, setIssues] = useState<IIssue[]>([]);
   const [stats, setStats] = useState<any>({});
@@ -40,11 +42,12 @@ export const App: React.FC = () => {
     async function loadData() {
       setLoading(true);
       try {
-        const [adData, rData, nData, wData, cData, iData, hData] = await Promise.all([
+        const [adData, rData, nData, wData, airData, cData, iData, hData] = await Promise.all([
           fetchAirports(),
           fetchRoutes(),
           fetchNavaids(),
           fetchWaypoints(),
+          fetchAirspaces(),
           fetchChanges(),
           fetchIssues(),
           fetchHealth()
@@ -54,6 +57,7 @@ export const App: React.FC = () => {
         setRoutes(rData);
         setNavaids(nData);
         setWaypoints(wData);
+        setAirspaces(airData);
         setChanges(cData);
         setIssues(iData);
         setStats(hData?.counts || {});
@@ -94,6 +98,7 @@ export const App: React.FC = () => {
             routes={routes}
             navaids={navaids}
             waypoints={waypoints}
+            airspaces={airspaces}
             onSelectAirport={handleSelectAirport}
           />
         )}

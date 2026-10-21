@@ -94,6 +94,39 @@ _MAGVAR = re.compile(r"(\d+(?:\.\d+)?)\s*°?\s*([EW])\s*[/\(]\s*(\d{4})")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# AD 2.1 — Aerodrome Location Indicator and Name
+# ══════════════════════════════════════════════════════════════════════════════
+
+def parse_ad_2_1(html: str, icao: str):
+    """Extract official aerodrome name (distinct from operator name)."""
+    section = f"{icao} AD 2.1"
+    etype = "aerodrome"
+    key = icao
+    facts: list[Fact] = []
+    issues: list[Issue] = []
+
+    soup = _soup(html)
+    el = soup.find(lambda t: t.name in ["h2", "h3", "h4"] and icao in t.get_text())
+    if el:
+        raw = _text(el)
+        m = re.search(rf"{icao}\s*[\u2011\-\—\s]*(.+)", raw)
+        if m:
+            name = m.group(1).strip()
+            facts.append(Fact(etype, key, "aerodrome_name", name, None, raw, section))
+            return facts, issues
+
+    div = soup.find(id=lambda x: x and f"{icao}-AD-2.1" in x)
+    if div:
+        raw = _text(div)
+        m = re.search(rf"{icao}\s*[\u2011\-\—\s]*(.+)", raw)
+        if m:
+            name = m.group(1).strip()
+            facts.append(Fact(etype, key, "aerodrome_name", name, None, raw, section))
+
+    return facts, issues
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # AD 2.2 — Aerodrome Geographical and Administrative Data
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -673,7 +706,7 @@ def parse_aerodrome(html: str, icao: str):
     all_facts: list[Fact]  = []
     all_issues: list[Issue] = []
 
-    for parser in (parse_ad_2_2, parse_ad_2_3, parse_ad_2_6,
+    for parser in (parse_ad_2_1, parse_ad_2_2, parse_ad_2_3, parse_ad_2_6,
                    parse_ad_2_12, parse_ad_2_13,
                    parse_ad_2_18, parse_ad_2_19):
         f, i = parser(html, icao)

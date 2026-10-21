@@ -13,6 +13,9 @@ interface FooterProps {
     routes_count?: number;
     navaids_count?: number;
     waypoints_count?: number;
+    airspaces_count?: number;
+    valid_airspaces_count?: number;
+    issues_count?: number;
   };
 }
 
@@ -37,19 +40,22 @@ export const Footer: React.FC<FooterProps> = ({ stats }) => {
           {/* Extracted Stats Badges */}
           <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
             <span className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
-              <b className="text-cyan-400">33</b> Aerodromes
+              <b className="text-cyan-400">{stats?.airports_count ?? 33}</b> Aerodromes
             </span>
             <span className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
-              <b className="text-cyan-400">96</b> Runways
+              <b className="text-cyan-400">{stats?.runways_count ?? 96}</b> Runways
             </span>
             <span className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
-              <b className="text-amber-400">51</b> ATS Routes
+              <b className="text-amber-400">{stats?.routes_count ?? 51}</b> ATS Routes
             </span>
             <span className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
-              <b className="text-purple-400">82</b> Navaids
+              <b className="text-purple-400">{stats?.navaids_count ?? 82}</b> Navaids
             </span>
             <span className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
-              <b className="text-emerald-400">303</b> Waypoints
+              <b className="text-emerald-400">{stats?.waypoints_count ?? 303}</b> Waypoints
+            </span>
+            <span className="bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300">
+              <b className="text-blue-400">{stats?.airspaces_count ?? 130}</b> Airspaces ({stats?.valid_airspaces_count ?? 63} verified)
             </span>
           </div>
         </div>

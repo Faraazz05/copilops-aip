@@ -15,6 +15,9 @@ interface NavbarProps {
     routes_count?: number;
     navaids_count?: number;
     waypoints_count?: number;
+    airspaces_count?: number;
+    valid_airspaces_count?: number;
+    issues_count?: number;
   };
 }
 

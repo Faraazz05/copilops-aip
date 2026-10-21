@@ -12,6 +12,7 @@ import { navaidsRouter } from "./routes/navaids";
 import { waypointsRouter } from "./routes/waypoints";
 import { changesRouter } from "./routes/changes";
 import { issuesRouter } from "./routes/issues";
+import { airspacesRouter } from "./routes/airspaces";
 import { isMongoConnected, getLocalData } from "./db";
 
 export const app = express();
@@ -39,6 +40,7 @@ app.use("/api/navaids", navaidsRouter);
 app.use("/api/waypoints", waypointsRouter);
 app.use("/api/changes", changesRouter);
 app.use("/api/issues", issuesRouter);
+app.use("/api/airspaces", airspacesRouter);
 
 // Serve frontend static build if present (for single-container deployment)
 const clientBuild = path.join(__dirname, "../../client/dist");
