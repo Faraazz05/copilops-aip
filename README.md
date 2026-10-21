@@ -127,7 +127,7 @@ Documented in detail in [DATA_ISSUES.md](file:///c:/Users/spfar/Desktop/copilops
 
 ## Production Deployment & Docker
 
-See [DEPLOYMENT.md](file:///c:/Users/spfar/Desktop/copilops-aip/DEPLOYMENT.md) for detailed deployment instructions.
+See [AUTOMATION.md](AUTOMATION.md) for detailed cloud configuration, environment variables, and the 28-day AIRAC automation lifecycle.
 
 ### Build and Run with Docker (Optional)
 ```bash
@@ -137,8 +137,7 @@ docker-compose up --build
 
 ### Free Cloud Deployment Options:
 * **Option 1 (GitHub Pages & Actions - Direct Portfolio Link):** Built directly into the repository root (`index.html`, `assets/`) and automated via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). When pushed to GitHub, it is immediately accessible at `https://faraazz05.github.io/copilops-aip/`.
-* **Option 2 (Full-Stack Container):** **Render.com + MongoDB Atlas** (Uses the multi-stage [Dockerfile](file:///c:/Users/spfar/Desktop/copilops-aip/Dockerfile) and [render.yaml](file:///c:/Users/spfar/Desktop/copilops-aip/render.yaml) for 1-click full API + UI hosting).
-* **Option 3 (Serverless Frontend):** **Vercel** (Uses [vercel.json](file:///c:/Users/spfar/Desktop/copilops-aip/vercel.json) to deploy the client in 60 seconds).
+* **Option 2 (Full-Stack Container):** **Render.com + MongoDB Atlas** (Uses the multi-stage [Dockerfile](Dockerfile) and [render.yaml](render.yaml) for 1-click full API + UI hosting).
 
 ---
 
