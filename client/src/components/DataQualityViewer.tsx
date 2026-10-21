@@ -1,13 +1,7 @@
 /**
- * CopilOPS Aeronautical Data Platform - Data Quality Inspector
+ * CopilOPS — Aviation Operations Intelligence
+ * AIP Data Quality, Validation & Edge-Case Ambiguities Inspector
  * Author: Mohd Faraz (https://faraazz05.github.io)
- *
- * Implements:
- * - Clean separation between:
- *   1) Detected by Latest Pipeline Run (live issue records persisted from database/extraction)
- *   2) Documented Educational Examples / Historical Edge Cases (curated case studies)
- * - Accurate dynamic counters matching active filter and dataset
- * - Section links, edition tracking, and severity breakdown
  */
 
 import React, { useState, useMemo } from "react";
@@ -24,7 +18,15 @@ import {
   Activity,
   Layers,
   FileText,
+  Copy,
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { Card, CardHeader, CardContent } from "./common/Card";
+import { StatusBadge } from "./common/StatusBadge";
+import { EmptyState } from "./common/EmptyState";
 
 interface DataQualityViewerProps {
   issues: IIssue[];
@@ -39,7 +41,11 @@ export const DataQualityViewer: React.FC<DataQualityViewerProps> = ({ issues }) 
   const [codeFilter, setCodeFilter] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
-  // Curated historical edge-case studies (explicitly labeled as examples)
+  // Expanded issue for deep inspection
+  const [expandedIssueIdx, setExpandedIssueIdx] = useState<number | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  // Curated historical edge-case studies (explicitly labeled as documented references)
   const documentedExamples = [
     {
       id: "CASE-1",
@@ -174,46 +180,61 @@ export const DataQualityViewer: React.FC<DataQualityViewerProps> = ({ issues }) 
     };
   }, [issues]);
 
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(text);
+    setTimeout(() => setCopiedText(null), 2000);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 font-sans">
-      {/* Top Header */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Header Card with View Switcher */}
+      <div className="bg-[#0D1726] border border-[#26374B] p-5 rounded-xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <ShieldAlert className="w-6 h-6 text-amber-400" />
-            <h2 className="text-xl font-bold text-white">
-              AIP Data Quality, Validation & Ambiguities Inspector
-            </h2>
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#121F31] border border-[#26374B] text-[#E9B45B] flex items-center justify-center">
+              <ShieldAlert className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[#F1F5FA] tracking-tight">
+                  AIP Data Quality &amp; Integrity Inspector
+                </h2>
+                <StatusBadge variant="cyan" mono size="xs">
+                  AIRAC 2026-10-01
+                </StatusBadge>
+              </div>
+              <p className="text-xs text-[#A5B3C4] mt-0.5">
+                Deterministic validation rules capturing real-world publication anomalies in the official skeyes eAIP.
+              </p>
+            </div>
           </div>
-          <p className="text-slate-400 text-xs mt-1">
-            Deterministic validation rules capturing real-world ambiguities and publication anomalies in the official skeyes eAIP.
-          </p>
         </div>
 
-        {/* View Switcher Pills */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+        {/* View Switcher Controls */}
+        <div className="flex items-center bg-[#070D18] p-1 rounded-lg border border-[#26374B] text-xs">
           <button
             onClick={() => setActiveView("live")}
-            className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition ${
+            className={`px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 transition-colors ${
               activeView === "live"
-                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#17263A] text-[#F1F5FA] border border-[#26374B] shadow-sm"
+                : "text-[#74869C] hover:text-[#F1F5FA]"
             }`}
           >
-            <Activity className="w-3.5 h-3.5" />
-            <span>Detected in Latest Pipeline Run ({liveCounts.TOTAL})</span>
+            <Activity className="w-3.5 h-3.5 text-[#37C9D6]" />
+            <span>Latest Pipeline Run ({liveCounts.TOTAL})</span>
           </button>
 
           <button
             onClick={() => setActiveView("curated")}
-            className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition ${
+            className={`px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 transition-colors ${
               activeView === "curated"
-                ? "bg-amber-600 text-white shadow-md shadow-amber-600/30"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[#17263A] text-[#F1F5FA] border border-[#26374B] shadow-sm"
+                : "text-[#74869C] hover:text-[#F1F5FA]"
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Documented Examples / Edge Cases ({documentedExamples.length})</span>
+            <BookOpen className="w-3.5 h-3.5 text-[#E9B45B]" />
+            <span>Documented Edge Cases ({documentedExamples.length})</span>
           </button>
         </div>
       </div>
@@ -222,57 +243,57 @@ export const DataQualityViewer: React.FC<DataQualityViewerProps> = ({ issues }) 
       {activeView === "live" && (
         <div className="space-y-4">
           {/* Status summary banner */}
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="bg-[#0D1726] border border-[#26374B] p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
-              <span className="text-slate-400 font-semibold uppercase text-[11px]">
-                Active Pipeline Edition: <b className="text-white font-mono">2026-10-01</b>
+              <span className="text-[#74869C] font-semibold uppercase text-[10px] tracking-wider">
+                Pipeline Edition: <b className="text-[#F1F5FA] font-mono">2026-10-01</b>
               </span>
-              <span className="text-slate-500">|</span>
-              <span className="text-slate-400">
-                Filtered Results: <b className="text-cyan-400 font-mono">{filteredLiveIssues.length}</b> of {liveCounts.TOTAL}
+              <span className="text-[#26374B]">&bull;</span>
+              <span className="text-[#74869C]">
+                Filtered Results: <b className="text-[#37C9D6] font-mono">{filteredLiveIssues.length}</b> of {liveCounts.TOTAL}
               </span>
             </div>
 
             <div className="flex items-center gap-2 font-mono">
-              <span className="bg-red-950/80 border border-red-800 text-red-300 px-2.5 py-1 rounded-md text-[11px]">
+              <span className="bg-[#F16C78]/10 border border-[#F16C78]/30 text-[#F16C78] px-2.5 py-0.5 rounded-md text-[11px] font-medium">
                 {liveCounts.ERROR} Fatal Errors
               </span>
-              <span className="bg-amber-950/80 border border-amber-800 text-amber-300 px-2.5 py-1 rounded-md text-[11px]">
+              <span className="bg-[#E9B45B]/10 border border-[#E9B45B]/30 text-[#E9B45B] px-2.5 py-0.5 rounded-md text-[11px] font-medium">
                 {liveCounts.WARN} Non-Fatal Warnings
               </span>
             </div>
           </div>
 
           {/* Filtering toolbar */}
-          <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="bg-[#0D1726] border border-[#26374B] p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex flex-wrap items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-400 font-semibold uppercase text-[10px]">Severity:</span>
+              <Filter className="w-3.5 h-3.5 text-[#74869C]" />
+              <span className="text-[#74869C] font-semibold uppercase text-[10px] tracking-wider">Severity:</span>
               {["ALL", "WARN", "ERROR"].map((s) => (
                 <button
                   key={s}
                   onClick={() => setSeverityFilter(s)}
-                  className={`px-2 py-0.5 rounded font-mono text-[11px] ${
+                  className={`px-2 py-0.5 rounded-md font-mono text-[11px] transition-colors ${
                     severityFilter === s
-                      ? "bg-cyan-500 text-white font-bold"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                      : "bg-[#070D18] text-[#A5B3C4] hover:bg-[#121F31] border border-[#26374B]"
                   }`}
                 >
                   {s}
                 </button>
               ))}
 
-              <span className="text-slate-500 mx-1">|</span>
+              <span className="text-[#26374B] mx-1">|</span>
 
-              <span className="text-slate-400 font-semibold uppercase text-[10px]">Issue Code:</span>
+              <span className="text-[#74869C] font-semibold uppercase text-[10px] tracking-wider">Issue Code:</span>
               <select
                 value={codeFilter}
                 onChange={(e) => setCodeFilter(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 font-mono focus:outline-none"
+                className="bg-[#070D18] border border-[#26374B] text-[#F1F5FA] text-xs rounded-md px-2 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-[#37C9D6] cursor-pointer"
               >
                 <option value="ALL">ALL CODES ({distinctCodes.length})</option>
                 {distinctCodes.map((c) => (
-                  <option key={c} value={c}>
+                  <option key={c} value={c} className="bg-[#0D1726] text-[#F1F5FA]">
                     {c}
                   </option>
                 ))}
@@ -280,22 +301,30 @@ export const DataQualityViewer: React.FC<DataQualityViewerProps> = ({ issues }) 
             </div>
 
             <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-[#74869C] absolute left-2.5 top-2.5" />
               <input
                 type="text"
                 placeholder="Search entity, section, message..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-slate-200 focus:ring-cyan-500 focus:border-cyan-500"
+                className="w-full bg-[#070D18] border border-[#26374B] rounded-lg pl-8 pr-7 py-1.5 text-xs text-[#F1F5FA] placeholder-[#74869C] focus:outline-none focus:ring-1 focus:ring-[#37C9D6]"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-2 top-2 text-[#74869C] hover:text-[#F1F5FA]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Issues table */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+          {/* Issues Table */}
+          <Card>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950 text-[11px] uppercase font-mono text-slate-400 border-b border-slate-800">
+              <table className="w-full text-left text-xs text-[#A5B3C4]">
+                <thead className="bg-[#070D18] text-[10px] uppercase font-mono text-[#74869C] border-b border-[#26374B]">
                   <tr>
                     <th className="px-4 py-3">Severity</th>
                     <th className="px-4 py-3">Code</th>
@@ -305,96 +334,160 @@ export const DataQualityViewer: React.FC<DataQualityViewerProps> = ({ issues }) 
                     <th className="px-4 py-3">Diagnostic Message</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
+                <tbody className="divide-y divide-[#26374B]/50 font-mono">
                   {filteredLiveIssues.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500 font-sans">
-                        No issues match the active filter criteria.
+                      <td colSpan={6} className="px-4 py-12 text-center text-[#74869C] font-sans">
+                        <EmptyState
+                          icon={ShieldAlert}
+                          title="No issues found"
+                          description="No validation diagnostics match the selected filter criteria."
+                        />
                       </td>
                     </tr>
                   ) : (
-                    filteredLiveIssues.map((iss, idx) => (
-                      <tr key={idx} className="hover:bg-slate-800/40 transition">
-                        <td className="px-4 py-2.5">
-                          {iss.severity === "ERROR" ? (
-                            <span className="bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                              ERROR
-                            </span>
-                          ) : (
-                            <span className="bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                              WARN
-                            </span>
+                    filteredLiveIssues.map((iss, idx) => {
+                      const isExpanded = expandedIssueIdx === idx;
+                      return (
+                        <React.Fragment key={idx}>
+                          <tr
+                            onClick={() => setExpandedIssueIdx(isExpanded ? null : idx)}
+                            className="hover:bg-[#121F31]/50 cursor-pointer transition-colors"
+                          >
+                            <td className="px-4 py-2.5">
+                              {iss.severity === "ERROR" ? (
+                                <StatusBadge variant="red" mono size="xs">
+                                  ERROR
+                                </StatusBadge>
+                              ) : (
+                                <StatusBadge variant="amber" mono size="xs">
+                                  WARN
+                                </StatusBadge>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 font-bold text-[#37C9D6]">{iss.code}</td>
+                            <td className="px-4 py-2.5 text-[#74869C] uppercase text-[10px]">{iss.entity_type}</td>
+                            <td className="px-4 py-2.5 font-bold text-[#F1F5FA]">{iss.entity_key}</td>
+                            <td className="px-4 py-2.5 text-[#A5B3C4] font-sans text-[11px]">
+                              <span className="bg-[#070D18] px-1.5 py-0.5 rounded border border-[#26374B]">
+                                {iss.section}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 font-sans text-[#F1F5FA] text-xs leading-tight">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="line-clamp-1">{iss.message}</span>
+                                <span className="text-[#74869C] text-[10px]">
+                                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expanded Detail Row */}
+                          {isExpanded && (
+                            <tr className="bg-[#070D18]/80 font-sans">
+                              <td colSpan={6} className="px-5 py-3 border-b border-[#26374B]">
+                                <div className="space-y-2 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-[#F1F5FA]">
+                                      Detailed Diagnostic Inspection:
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopy(`${iss.code} | ${iss.entity_key} | ${iss.message}`);
+                                      }}
+                                      className="flex items-center gap-1 text-[#37C9D6] hover:underline font-mono text-[11px]"
+                                    >
+                                      {copiedText ? (
+                                        <>
+                                          <Check className="w-3 h-3 text-[#47C995]" />
+                                          <span className="text-[#47C995]">Copied</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-3 h-3" />
+                                          <span>Copy Report</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                  <p className="text-[#A5B3C4] leading-relaxed bg-[#0D1726] p-3 rounded-lg border border-[#26374B] font-mono text-xs">
+                                    {iss.message}
+                                  </p>
+                                  <div className="flex items-center gap-4 text-[11px] text-[#74869C]">
+                                    <span>Detected by: <b className="text-[#A5B3C4]">{iss.detected_by || "Deterministic AIP Validator"}</b></span>
+                                    <span>&bull;</span>
+                                    <span>Edition: <b className="text-[#A5B3C4]">{iss.edition || "2026-10-01"}</b></span>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className="px-4 py-2.5 font-bold text-cyan-400">{iss.code}</td>
-                        <td className="px-4 py-2.5 text-slate-400 uppercase text-[10px]">{iss.entity_type}</td>
-                        <td className="px-4 py-2.5 font-bold text-white">{iss.entity_key}</td>
-                        <td className="px-4 py-2.5 text-slate-300 font-sans text-[11px]">
-                          <span className="bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/60">
-                            {iss.section}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 font-sans text-slate-300 text-xs leading-tight">
-                          {iss.message}
-                        </td>
-                      </tr>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* VIEW 2: DOCUMENTED EXAMPLES / CURATED CASES */}
       {activeView === "curated" && (
         <div className="space-y-4">
-          <div className="bg-amber-950/30 border border-amber-900/60 p-4 rounded-xl text-xs text-amber-200/90 leading-relaxed">
-            <b>Educational Reference Section:</b> The case studies below represent documented parser recovery mechanisms and historical anomalies identified in official eAIP publications. They are provided as illustrative architectural references and are clearly distinguished from the live extraction issues logged above.
+          <div className="bg-[#0D1726] border border-[#26374B] p-4 rounded-xl text-xs text-[#A5B3C4] leading-relaxed flex items-start gap-2.5">
+            <BookOpen className="w-4 h-4 text-[#E9B45B] shrink-0 mt-0.5" />
+            <div>
+              <b className="text-[#F1F5FA]">Educational Reference Section:</b> The case studies below represent documented parser recovery mechanisms and historical anomalies identified in official eAIP publications. They illustrate how CopilOPS deterministically overcomes publication ambiguities and non-standard syntax without crashing or losing data.
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {documentedExamples.map((c) => (
-              <div
-                key={c.id}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg space-y-3"
-              >
-                <div className="flex items-start justify-between border-b border-slate-800 pb-2">
-                  <div>
-                    <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
+              <Card key={c.id}>
+                <CardHeader
+                  icon={<FileText className="w-4 h-4 text-[#37C9D6]" />}
+                  title={
+                    <span className="text-sm font-bold text-[#F1F5FA]">{c.title}</span>
+                  }
+                  badge={
+                    <StatusBadge variant="amber" mono size="xs">
                       {c.code}
-                    </span>
-                    <h3 className="font-bold text-white text-sm mt-1">{c.title}</h3>
-                  </div>
-                  <span className="text-[10px] font-mono text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800">
-                    {c.severity}
-                  </span>
-                </div>
+                    </StatusBadge>
+                  }
+                />
 
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center gap-1.5 text-slate-400">
-                    <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <CardContent className="p-4 space-y-3 text-xs">
+                  <div className="flex items-center gap-1.5 text-[#74869C]">
                     <span>Location:</span>
-                    <b className="text-slate-200 font-mono">{c.location}</b>
+                    <b className="text-[#F1F5FA] font-mono">{c.location}</b>
                   </div>
 
-                  <div className="bg-slate-950 p-2 rounded border border-slate-800/80 font-mono text-[11px] text-amber-300">
-                    <span className="text-slate-500 block text-[9px] uppercase">Raw AIP Text:</span>
-                    {c.rawText}
+                  <div className="bg-[#070D18] p-2.5 rounded-lg border border-[#26374B] font-mono text-[11px] text-[#E9B45B] space-y-1">
+                    <span className="text-[#74869C] block text-[9px] uppercase font-bold tracking-wider">
+                      Raw eAIP Publication Text:
+                    </span>
+                    <div className="select-all whitespace-pre-wrap">{c.rawText}</div>
                   </div>
 
-                  <div className="text-slate-300 text-xs leading-relaxed pt-1">
-                    <b className="text-slate-400 block text-[11px]">Publication Ambiguity:</b>
+                  <div className="text-[#A5B3C4] leading-relaxed">
+                    <span className="text-[10px] font-bold text-[#74869C] uppercase tracking-wider block mb-0.5">
+                      Publication Ambiguity:
+                    </span>
                     {c.explanation}
                   </div>
 
-                  <div className="text-emerald-300/90 text-xs leading-relaxed pt-1 border-t border-slate-800/60">
-                    <b className="text-emerald-400 block text-[11px]">Deterministic Pipeline Solution:</b>
+                  <div className="text-[#47C995] leading-relaxed pt-2 border-t border-[#26374B]/60 bg-[#47C995]/5 -mx-4 -mb-4 p-4 rounded-b-xl border-t">
+                    <span className="text-[10px] font-bold text-[#47C995] uppercase tracking-wider block mb-0.5">
+                      Deterministic Pipeline Resolution:
+                    </span>
                     {c.handling}
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>

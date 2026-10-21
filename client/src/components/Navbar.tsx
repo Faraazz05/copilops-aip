@@ -1,10 +1,24 @@
-/*
+/**
+ * CopilOPS — Aviation Operations Intelligence
  * Author: Mohd Faraz (https://faraazz05.github.io)
- * CopilOPS AIP Platform - Navigation Bar
+ * Top Navigation Bar & Operations Shell
  */
 
-import React from "react";
-import { Plane, Map, Building2, GitCompare, ShieldAlert, Route as RouteIcon, Github, Globe, ExternalLink } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Plane,
+  Map,
+  Building2,
+  GitCompare,
+  ShieldAlert,
+  Route as RouteIcon,
+  Github,
+  Globe,
+  ExternalLink,
+  Menu,
+  X,
+  CheckCircle2,
+} from "lucide-react";
 
 interface NavbarProps {
   activeTab: string;
@@ -22,7 +36,9 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
-  const tabs = [
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems = [
     { id: "map", label: "Operations Map", icon: Map },
     { id: "airports", label: "Airport Cockpit", icon: Building2 },
     { id: "airways", label: "ATS Airways", icon: RouteIcon },
@@ -30,110 +46,160 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     { id: "issues", label: "Data Quality", icon: ShieldAlert },
   ];
 
+  const handleTabClick = (id: string) => {
+    setActiveTab(id);
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <header className="bg-slate-950/90 backdrop-blur-md border-b border-cyan-500/20 sticky top-0 z-50 shadow-lg shadow-black/40">
+    <header className="bg-[#0D1726] border-b border-[#26374B] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand */}
-          <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setActiveTab("map")}>
-            <div className="bg-gradient-to-tr from-cyan-500/20 to-blue-600/30 p-2 rounded-xl border border-cyan-400/40 text-cyan-300 shadow-md shadow-cyan-500/10 group-hover:border-cyan-400 transition-all">
-              <Plane className="w-5 h-5 transform -rotate-45" />
+        <div className="flex items-center justify-between h-14">
+          {/* Brand Identity */}
+          <div
+            className="flex items-center space-x-3 cursor-pointer select-none group"
+            onClick={() => handleTabClick("map")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") handleTabClick("map");
+            }}
+          >
+            <div className="w-8 h-8 rounded-lg bg-[#121F31] border border-[#26374B] text-[#37C9D6] flex items-center justify-center transition-colors group-hover:border-[#37C9D6]/50">
+              <Plane className="w-4 h-4 transform -rotate-45" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-lg text-white tracking-tight bg-gradient-to-r from-white via-slate-100 to-cyan-200 bg-clip-text text-transparent">
+                <span className="font-bold text-sm tracking-tight text-[#F1F5FA]">
                   CopilOPS
                 </span>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-950/90 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/30">
-                  AIP Platform
+                <span className="text-[10px] font-mono uppercase tracking-wider bg-[#17263A] text-[#37C9D6] px-1.5 py-0.5 rounded border border-[#26374B]">
+                  AIP Ops
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 block -mt-0.5 font-sans">
-                Aeronautical Data Engineering Engine
+              <span className="text-[11px] text-[#74869C] block -mt-0.5 font-medium">
+                Aviation Operations Intelligence
               </span>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="hidden md:flex space-x-1 bg-slate-900/60 p-1 rounded-xl border border-slate-800/80">
-            {tabs.map((tab) => {
+          {/* Desktop Navigation Tabs */}
+          <nav className="hidden md:flex items-center space-x-1 bg-[#070D18] p-1 rounded-lg border border-[#26374B]">
+            {navItems.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  onClick={() => handleTabClick(tab.id)}
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs transition-colors duration-150 ${
                     isActive
-                      ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-400/30 shadow-sm shadow-cyan-500/20 font-semibold"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      ? "bg-[#17263A] text-[#F1F5FA] font-semibold border border-[#26374B] shadow-sm"
+                      : "text-[#A5B3C4] hover:text-[#F1F5FA] hover:bg-[#121F31]"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon
+                    className={`w-3.5 h-3.5 ${
+                      isActive ? "text-[#37C9D6]" : "text-[#74869C]"
+                    }`}
+                  />
                   <span>{tab.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          {/* Right Action Items: Portfolio, Source Code, AIRAC Badge */}
-          <div className="flex items-center space-x-3">
-            {/* Portfolio Link */}
-            <a
-              href="https://faraazz05.github.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden lg:flex items-center space-x-1.5 text-xs text-slate-300 hover:text-cyan-300 bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-cyan-500/40 transition-all font-mono group"
-              title="Mohd Faraz Portfolio"
-            >
-              <Globe className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
-              <span>faraazz05.github.io</span>
-              <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-            </a>
+          {/* Right Header Metadata & Actions */}
+          <div className="flex items-center space-x-2.5">
+            {/* Authoritative AIRAC Cycle Indicator */}
+            <div className="hidden lg:flex items-center space-x-2 bg-[#070D18] px-2.5 py-1 rounded-lg border border-[#26374B] font-mono text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#47C995] shrink-0" />
+              <span className="text-[#74869C] text-[11px]">AIRAC</span>
+              <span className="text-[#F1F5FA] font-medium text-[11px]">2026-10-01</span>
+              <span className="text-[10px] text-[#A5B3C4] bg-[#121F31] px-1 py-0.2 rounded border border-[#26374B]">
+                AMDT 010
+              </span>
+            </div>
 
-            {/* Source Code Button */}
+            {/* Source Code Link */}
             <a
               href="https://github.com/faraazz05/copilops-aip"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-1.5 text-xs font-semibold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 px-3 py-1.5 rounded-lg shadow-md shadow-cyan-500/20 transition-all"
+              className="hidden sm:flex items-center space-x-1.5 text-xs text-[#A5B3C4] hover:text-[#F1F5FA] bg-[#121F31] hover:bg-[#17263A] border border-[#26374B] px-2.5 py-1.5 rounded-lg transition-colors font-medium"
+              title="View repository on GitHub"
             >
               <Github className="w-3.5 h-3.5" />
-              <span>Source Code</span>
+              <span>Source</span>
             </a>
 
-            {/* AIRAC cycle badge */}
-            <div className="hidden sm:flex flex-col text-right pl-2 border-l border-slate-800">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">AIRAC Cycle</span>
-              <span className="text-xs font-mono font-bold text-emerald-400 flex items-center justify-end">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1.5 animate-ping"></span>
-                2026-10-01
-              </span>
-            </div>
+            {/* Author Portfolio */}
+            <a
+              href="https://faraazz05.github.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center space-x-1.5 text-xs text-[#A5B3C4] hover:text-[#37C9D6] bg-[#121F31] hover:bg-[#17263A] border border-[#26374B] px-2.5 py-1.5 rounded-lg transition-colors font-mono"
+              title="Author Portfolio"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#37C9D6]" />
+              <span className="text-[11px]">faraazz05</span>
+            </a>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-1.5 rounded-lg text-[#A5B3C4] hover:text-[#F1F5FA] bg-[#121F31] border border-[#26374B]"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Bar */}
-        <div className="md:hidden flex space-x-1 overflow-x-auto py-2 border-t border-slate-800/80">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs whitespace-nowrap ${
-                  isActive
-                    ? "bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40"
-                    : "text-slate-400 hover:bg-slate-800"
-                }`}
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-3 border-t border-[#26374B] space-y-1">
+            {navItems.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    isActive
+                      ? "bg-[#17263A] text-[#F1F5FA] border border-[#26374B]"
+                      : "text-[#A5B3C4] hover:bg-[#121F31] hover:text-[#F1F5FA]"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Icon
+                      className={`w-4 h-4 ${
+                        isActive ? "text-[#37C9D6]" : "text-[#74869C]"
+                      }`}
+                    />
+                    <span>{tab.label}</span>
+                  </div>
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#37C9D6]" />
+                  )}
+                </button>
+              );
+            })}
+
+            <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-[#74869C] px-3">
+              <span>AIRAC 2026-10-01</span>
+              <a
+                href="https://github.com/faraazz05/copilops-aip"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#37C9D6] hover:underline flex items-center gap-1"
               >
-                <Icon className="w-3 h-3" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+                GitHub <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );

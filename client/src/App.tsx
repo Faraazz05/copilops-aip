@@ -1,6 +1,7 @@
-/*
+/**
+ * CopilOPS — Aviation Operations Intelligence
+ * Main Application Shell & State Controller
  * Author: Mohd Faraz (https://faraazz05.github.io)
- * CopilOPS AIP Platform - Main Application Component
  */
 
 import React, { useState, useEffect } from "react";
@@ -20,9 +21,9 @@ import {
   fetchAirspaces,
   fetchChanges,
   fetchIssues,
-  fetchHealth
+  fetchHealth,
 } from "./api";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plane } from "lucide-react";
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("map");
@@ -50,16 +51,16 @@ export const App: React.FC = () => {
           fetchAirspaces(),
           fetchChanges(),
           fetchIssues(),
-          fetchHealth()
+          fetchHealth(),
         ]);
 
-        setAirports(adData);
-        setRoutes(rData);
-        setNavaids(nData);
-        setWaypoints(wData);
-        setAirspaces(airData);
-        setChanges(cData);
-        setIssues(iData);
+        setAirports(adData || []);
+        setRoutes(rData || []);
+        setNavaids(nData || []);
+        setWaypoints(wData || []);
+        setAirspaces(airData || []);
+        setChanges(cData || []);
+        setIssues(iData || []);
         setStats(hData?.counts || {});
       } catch (err) {
         console.error("Failed to load aeronautical data:", err);
@@ -78,17 +79,28 @@ export const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
-        <p className="text-slate-300 font-mono text-sm tracking-wide">
-          Loading CopilOPS Aeronautical Data (AIRAC 2026-10-01)...
-        </p>
+      <div className="min-h-screen bg-[#070D18] flex flex-col items-center justify-center space-y-4 text-center px-4">
+        <div className="w-12 h-12 rounded-xl bg-[#0D1726] border border-[#26374B] text-[#37C9D6] flex items-center justify-center">
+          <Plane className="w-6 h-6 transform -rotate-45" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-[#F1F5FA] tracking-tight">
+            CopilOPS — Aviation Operations Intelligence
+          </h2>
+          <p className="text-xs text-[#74869C] font-mono">
+            Loading Belgium &amp; Luxembourg eAIP Datasets (AIRAC 2026-10-01)...
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-[#37C9D6] font-mono pt-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Validating aeronautical models...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-[#070D18] text-[#F1F5FA] flex flex-col font-sans selection:bg-[#37C9D6]/20">
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} stats={stats} />
 
       <main className="flex-1">

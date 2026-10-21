@@ -1,6 +1,7 @@
-/* 
+/**
+ * CopilOPS — Aviation Operations Intelligence
  * Author: Mohd Faraz (https://faraazz05.github.io)
- * CopilOPS AIP Platform - High-Tech Aerospace Styling
+ * Global Design Tokens & Operational Console Styling
  */
 
 @tailwind base;
@@ -8,82 +9,156 @@
 @tailwind utilities;
 
 :root {
-  --aviation-glow: rgba(0, 240, 255, 0.15);
+  --color-aviation-bg: #070D18;
+  --color-aviation-surface: #0D1726;
+  --color-aviation-elevated: #121F31;
+  --color-aviation-secondary: #17263A;
+  --color-aviation-border: #26374B;
+  --color-aviation-border-subtle: #1B2A3D;
+  --color-aviation-text: #F1F5FA;
+  --color-aviation-text-secondary: #A5B3C4;
+  --color-aviation-text-muted: #74869C;
+  --color-aviation-cyan: #37C9D6;
+  --color-aviation-blue: #6C9EFF;
+  --color-aviation-green: #47C995;
+  --color-aviation-amber: #E9B45B;
+  --color-aviation-red: #F16C78;
 }
 
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #050b18;
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(0, 180, 216, 0.08) 0%, transparent 75%),
-    linear-gradient(to bottom, #050b18 0%, #030712 100%);
-  color: #f1f5f9;
+  background-color: var(--color-aviation-bg);
+  color: var(--color-aviation-text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbars */
+/* Operational Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #050b18;
+  background: var(--color-aviation-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--color-aviation-secondary);
   border-radius: 4px;
-  border: 1px solid #334155;
+  border: 1px solid var(--color-aviation-border);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00e5ff;
+  background: var(--color-aviation-border);
 }
 
-/* Glassmorphism utility classes */
-.glass-panel {
-  background: rgba(11, 20, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 229, 255, 0.12);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+/* Selection */
+::selection {
+  background-color: rgba(55, 201, 214, 0.25);
+  color: #F1F5FA;
 }
 
-.glass-panel-glow {
-  background: rgba(11, 20, 42, 0.85);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 229, 255, 0.25);
-  box-shadow: 0 0 25px rgba(0, 229, 255, 0.08);
+/* Focus Ring Utility */
+.aviation-focus {
+  outline: none;
+}
+.aviation-focus:focus-visible {
+  outline: 2px solid var(--color-aviation-cyan);
+  outline-offset: 1px;
 }
 
-.radar-sweep {
-  position: relative;
-  overflow: hidden;
+/* Subtle Console Surface Utilities */
+.aviation-card {
+  background-color: var(--color-aviation-surface);
+  border: 1px solid var(--color-aviation-border);
+  border-radius: 12px;
 }
 
-.radar-sweep::after {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(180deg, rgba(0, 229, 255, 0.05) 0%, transparent 100%);
-  pointer-events: none;
+.aviation-card-elevated {
+  background-color: var(--color-aviation-elevated);
+  border: 1px solid var(--color-aviation-border);
+  border-radius: 12px;
 }
 
-/* Leaflet dark theme map overrides */
+/* Leaflet Container & Dark Operational Overrides */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #050b18 !important;
+  background: #E5E7EB !important; /* Neutral light tone under Carto Positron */
+  font-family: inherit;
 }
 
 .leaflet-popup-content-wrapper {
-  background: rgba(15, 23, 42, 0.95) !important;
-  backdrop-filter: blur(12px) !important;
-  color: #f8fafc !important;
-  border-radius: 12px !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
-  border: 1px solid rgba(0, 229, 255, 0.25) !important;
+  background: var(--color-aviation-surface) !important;
+  color: var(--color-aviation-text) !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--color-aviation-border) !important;
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.6) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
 }
 
 .leaflet-popup-tip {
-  background: rgba(15, 23, 42, 0.95) !important;
+  background: var(--color-aviation-surface) !important;
+  border: 1px solid var(--color-aviation-border) !important;
+}
+
+.leaflet-tooltip {
+  background: var(--color-aviation-surface) !important;
+  color: var(--color-aviation-text) !important;
+  border: 1px solid var(--color-aviation-border) !important;
+  border-radius: 6px !important;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 11px !important;
+  padding: 3px 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: var(--color-aviation-border) !important;
+}
+.leaflet-tooltip-bottom:before {
+  border-bottom-color: var(--color-aviation-border) !important;
+}
+.leaflet-tooltip-left:before {
+  border-left-color: var(--color-aviation-border) !important;
+}
+.leaflet-tooltip-right:before {
+  border-right-color: var(--color-aviation-border) !important;
+}
+
+/* Leaflet Zoom Controls Customization for Dark Aviation Console */
+.leaflet-bar {
+  border: 1px solid var(--color-aviation-border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4) !important;
+}
+.leaflet-bar a {
+  background-color: var(--color-aviation-surface) !important;
+  color: var(--color-aviation-text) !important;
+  border-bottom: 1px solid var(--color-aviation-border) !important;
+  transition: background-color 0.15s ease;
+}
+.leaflet-bar a:hover {
+  background-color: var(--color-aviation-elevated) !important;
+  color: var(--color-aviation-cyan) !important;
+}
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

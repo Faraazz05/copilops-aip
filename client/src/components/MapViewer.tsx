@@ -1,17 +1,10 @@
 /**
- * CopilOPS Aeronautical Data Platform - Operational Geospatial Map Viewer
+ * CopilOPS — Aviation Operations Intelligence
+ * Operational Geospatial Map Viewer (CARTO Positron Basemap + Dark Aviation Console)
  * Author: Mohd Faraz (https://faraazz05.github.io)
- *
- * Implements:
- * - Quiet, high-contrast CartoDB Positron basemap with fallback
- * - Decluttered default view (EBBR, EBLG, EBCI only; routes/navaids/waypoints OFF initially)
- * - Single-airway highlighting with reconstructed polyline disclaimer
- * - Selectable controlled & special-use airspace (CTA/TMA, EBR, EBD) with verified geometry
- * - Reusable provenance inspector panel for selected features
- * - Smart bounds fitting & map resize invalidation
  */
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -38,9 +31,14 @@ import {
   FileText,
   MapPin,
   Eye,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  ExternalLink,
 } from "lucide-react";
 import { IAirport, IRoute, INavaid, IWaypoint, IAirspace } from "../types";
 import { ProvenanceCard } from "./ProvenanceCard";
+import { StatusBadge } from "./common/StatusBadge";
 
 // Target airport coordinates
 const TARGET_COORDS: Record<string, [number, number]> = {
@@ -52,14 +50,14 @@ const TARGET_COORDS: Record<string, [number, number]> = {
 // Basemap Tile Providers
 const BASEMAP_TILES = {
   positron: {
-    name: "CartoDB Positron (Quiet Neutral)",
+    name: "CARTO Positron",
     url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
     subdomains: "abcd",
   },
   osm: {
-    name: "OpenStreetMap Standard",
+    name: "OpenStreetMap",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
@@ -84,7 +82,6 @@ const MapController: React.FC<{
   const map = useMap();
 
   useEffect(() => {
-    // Invalidate size on mount & container change
     map.invalidateSize();
   }, [map]);
 
@@ -92,7 +89,7 @@ const MapController: React.FC<{
     if (targetBounds) {
       map.fitBounds(targetBounds, {
         paddingTopLeft: [40, 40],
-        paddingBottomRight: [300, 40],
+        paddingBottomRight: [320, 40],
         maxZoom: 14,
         animate: true,
       });
@@ -111,7 +108,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   airspaces = [],
   onSelectAirport,
 }) => {
-  // Phase 2.1 Default layer visibility
+  // Layer visibility states (Default: Target Airports ON, TMA/CTA ON; airways, other airports, navaids, waypoints OFF)
   const [showTargetAirports, setShowTargetAirports] = useState(true);
   const [showOtherAirports, setShowOtherAirports] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
@@ -123,7 +120,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   // Basemap Selection
   const [basemapKey, setBasemapKey] = useState<"positron" | "osm">("positron");
 
-  // Route Selection & Highlighting (Phase 2.3)
+  // Route Selection & Highlighting
   const [selectedRouteName, setSelectedRouteName] = useState<string | null>(null);
   const [routeSearch, setRouteSearch] = useState("");
 
@@ -139,10 +136,16 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   // Unresolved Airspace Modal toggle
   const [showUnresolvedAirspace, setShowUnresolvedAirspace] = useState(false);
 
+  // Layer panel collapsed state
+  const [layersOpen, setLayersOpen] = useState(true);
+
+  // Legend collapsed state
+  const [legendOpen, setLegendOpen] = useState(false);
+
   // Initial overview bounds covering Belgium & target airports
   const overviewBounds: L.LatLngBoundsExpression = [
-    [49.5, 2.5],
-    [51.5, 6.4],
+    [49.45, 2.45],
+    [51.55, 6.45],
   ];
 
   // Target airports bounds
@@ -156,6 +159,21 @@ export const MapViewer: React.FC<MapViewerProps> = ({
     setFitBoundsTarget(targetAirportsBounds);
   };
 
+  // Action: Fit single airport
+  const handleFocusAirport = (icao: string) => {
+    const coords = TARGET_COORDS[icao];
+    if (coords) {
+      setFitBoundsTarget([
+        [coords[0] - 0.05, coords[1] - 0.05],
+        [coords[0] + 0.05, coords[1] + 0.05],
+      ]);
+      const found = airports.find((a) => a.icao === icao);
+      if (found) {
+        setSelectedFeature({ type: "airport", data: found });
+      }
+    }
+  };
+
   // Action: Reset overview
   const handleResetOverview = () => {
     setSelectedRouteName(null);
@@ -167,8 +185,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   const handleFitSelectedFeature = (feat: any, type: string) => {
     if (type === "airport" && feat.latitude && feat.longitude) {
       setFitBoundsTarget([
-        [feat.latitude - 0.05, feat.longitude - 0.05],
-        [feat.latitude + 0.05, feat.longitude + 0.05],
+        [feat.latitude - 0.06, feat.longitude - 0.06],
+        [feat.latitude + 0.06, feat.longitude + 0.06],
       ]);
     } else if (type === "route" && feat.segments) {
       const allCoords: [number, number][] = [];
@@ -188,8 +206,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
       }
     } else if ((type === "navaid" || type === "waypoint") && feat.latitude && feat.longitude) {
       setFitBoundsTarget([
-        [feat.latitude - 0.03, feat.longitude - 0.03],
-        [feat.latitude + 0.03, feat.longitude + 0.03],
+        [feat.latitude - 0.04, feat.longitude - 0.04],
+        [feat.latitude + 0.04, feat.longitude + 0.04],
       ]);
     }
   };
@@ -232,34 +250,62 @@ export const MapViewer: React.FC<MapViewerProps> = ({
     );
   }, [verifiedAirspaces]);
 
-  return (
-    <div className="relative w-full h-[calc(100vh-4rem)] bg-slate-950 overflow-hidden font-sans select-none">
-      {/* Top Floating Controls Bar */}
-      <div className="absolute top-3 left-4 z-[1000] flex flex-wrap items-center gap-2">
-        {/* Fit Target Airports */}
-        <button
-          onClick={handleFitTargetAirports}
-          className="bg-slate-900/90 hover:bg-slate-800 text-slate-100 border border-slate-700/80 px-3 py-1.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md transition"
-          title="Fit view to primary EBBR, EBLG, EBCI target airports"
-        >
-          <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Fit Target Airports</span>
-        </button>
+  // Count active layers
+  const activeLayerCount = [
+    showTargetAirports,
+    showOtherAirports,
+    showTmaCta,
+    showRestricted,
+    showRoutes,
+    showNavaids,
+    showWaypoints,
+  ].filter(Boolean).length;
 
-        {/* Reset Overview */}
+  return (
+    <div className="relative w-full h-[calc(100vh-3.5rem)] bg-[#070D18] overflow-hidden font-sans select-none">
+      {/* Top Operations Toolbar */}
+      <div className="absolute top-3 left-4 z-[1000] flex flex-wrap items-center gap-2 max-w-[calc(100vw-2rem)] pointer-events-auto">
+        {/* Target Airport Quick Focus Group */}
+        <div className="flex items-center bg-[#0D1726]/95 border border-[#26374B] rounded-lg p-1 shadow-lg backdrop-blur-sm">
+          <span className="text-[10px] font-mono font-semibold text-[#74869C] px-2 uppercase">
+            Focus
+          </span>
+          <div className="flex items-center gap-1 font-mono text-xs">
+            {["EBBR", "EBLG", "EBCI"].map((icao) => (
+              <button
+                key={icao}
+                onClick={() => handleFocusAirport(icao)}
+                className="px-2 py-0.5 rounded bg-[#121F31] hover:bg-[#17263A] text-[#F1F5FA] hover:text-[#37C9D6] border border-[#26374B] transition-colors"
+                title={`Focus ${icao}`}
+              >
+                {icao}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleFitTargetAirports}
+            className="ml-1 px-2 py-0.5 rounded text-[11px] text-[#A5B3C4] hover:text-[#F1F5FA] hover:bg-[#121F31] flex items-center gap-1 transition-colors"
+            title="Fit all target airports"
+          >
+            <Crosshair className="w-3 h-3 text-[#37C9D6]" />
+            <span className="hidden sm:inline">All 3</span>
+          </button>
+        </div>
+
+        {/* Reset FIR Overview */}
         <button
           onClick={handleResetOverview}
-          className="bg-slate-900/90 hover:bg-slate-800 text-slate-100 border border-slate-700/80 px-3 py-1.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md transition"
-          title="Reset map to full Belgian FIR overview"
+          className="bg-[#0D1726]/95 hover:bg-[#121F31] text-[#F1F5FA] border border-[#26374B] px-2.5 py-1.5 rounded-lg shadow-lg text-xs font-medium flex items-center gap-1.5 backdrop-blur-sm transition-colors"
+          title="Reset map view to Belgian FIR overview"
         >
-          <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-          <span>Reset Overview</span>
+          <RotateCcw className="w-3.5 h-3.5 text-[#E9B45B]" />
+          <span className="hidden sm:inline">Reset FIR</span>
         </button>
 
-        {/* Route Selector Dropdown & Search (Phase 2.3) */}
+        {/* Route Selector Dropdown & Quick Search */}
         <div className="relative">
-          <div className="flex items-center bg-slate-900/90 border border-slate-700/80 rounded-lg px-2.5 py-1 text-xs shadow-xl backdrop-blur-md">
-            <RouteIcon className="w-3.5 h-3.5 text-amber-400 mr-1.5" />
+          <div className="flex items-center bg-[#0D1726]/95 border border-[#26374B] rounded-lg px-2.5 py-1 text-xs shadow-lg backdrop-blur-sm">
+            <RouteIcon className="w-3.5 h-3.5 text-[#E9B45B] mr-1.5 shrink-0" />
             <select
               value={selectedRouteName || ""}
               onChange={(e) => {
@@ -275,13 +321,14 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   if (selectedFeature?.type === "route") setSelectedFeature(null);
                 }
               }}
-              className="bg-transparent text-slate-200 text-xs font-mono font-semibold focus:outline-none cursor-pointer"
+              className="bg-transparent text-[#F1F5FA] text-xs font-mono font-medium focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
+              aria-label="Select ATS Route to Highlight"
             >
-              <option value="" className="bg-slate-900 text-slate-400">
-                — Select Single Route to Highlight —
+              <option value="" className="bg-[#0D1726] text-[#74869C]">
+                — Select Route —
               </option>
               {filteredRouteList.map((r) => (
-                <option key={r.designator} value={r.designator} className="bg-slate-900 text-slate-200">
+                <option key={r.designator} value={r.designator} className="bg-[#0D1726] text-[#F1F5FA]">
                   {r.designator} ({r.rnp_type}) - {r.waypoint_count} pts
                 </option>
               ))}
@@ -293,8 +340,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   setSelectedRouteName(null);
                   if (selectedFeature?.type === "route") setSelectedFeature(null);
                 }}
-                className="ml-2 text-slate-400 hover:text-white"
+                className="ml-2 text-[#74869C] hover:text-[#F1F5FA]"
                 title="Clear route highlight"
+                aria-label="Clear route"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -302,187 +350,239 @@ export const MapViewer: React.FC<MapViewerProps> = ({
           </div>
         </div>
 
-        {/* Unresolved Airspace Drawer Trigger */}
+        {/* Airspace Verification Log Trigger */}
         <button
           onClick={() => setShowUnresolvedAirspace(!showUnresolvedAirspace)}
-          className="bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-slate-700/80 px-2.5 py-1.5 rounded-lg shadow-xl text-xs flex items-center gap-1.5 backdrop-blur-md transition"
-          title="Inspect airspaces excluded from map geometry due to border or arc limitations"
+          className={`px-2.5 py-1.5 rounded-lg border shadow-lg text-xs flex items-center gap-1.5 backdrop-blur-sm transition-colors ${
+            showUnresolvedAirspace
+              ? "bg-[#17263A] text-[#37C9D6] border-[#37C9D6]/40"
+              : "bg-[#0D1726]/95 hover:bg-[#121F31] text-[#A5B3C4] border-[#26374B]"
+          }`}
+          title="Inspect airspaces excluded from map vector geometry due to non-surveyed border or arc limitations"
         >
-          <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-          <span>Airspace Verification Log ({unresolvedAirspaces.length})</span>
+          <ShieldAlert className="w-3.5 h-3.5 text-[#E9B45B]" />
+          <span className="hidden md:inline">Airspace Verification Log</span>
+          <span className="font-mono text-[10px] bg-[#121F31] px-1.5 py-0.2 rounded border border-[#26374B]">
+            {unresolvedAirspaces.length}
+          </span>
         </button>
       </div>
 
-      {/* Floating Layer Controls (Right Top) */}
-      <div className="absolute top-3 right-4 z-[1000] bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-2xl text-xs space-y-2 w-64">
-        <div className="flex items-center justify-between pb-1.5 border-b border-slate-700 font-semibold text-slate-200">
-          <div className="flex items-center space-x-1.5">
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <span>Map Layer Controls</span>
+      {/* Floating Layer Controls Panel (Right Top) */}
+      <div className="absolute top-3 right-4 z-[1000] bg-[#0D1726]/95 backdrop-blur-sm border border-[#26374B] rounded-xl shadow-2xl text-xs w-64 pointer-events-auto">
+        <div
+          className="flex items-center justify-between p-3 cursor-pointer select-none hover:bg-[#121F31]/40 rounded-t-xl transition-colors"
+          onClick={() => setLayersOpen(!layersOpen)}
+        >
+          <div className="flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-[#37C9D6]" />
+            <span className="font-semibold text-[#F1F5FA]">Map Layers</span>
+            <span className="text-[10px] font-mono bg-[#121F31] text-[#37C9D6] px-1.5 py-0.2 rounded border border-[#26374B]">
+              {activeLayerCount} active
+            </span>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">AIRAC 2026-10-01</span>
+          <button className="text-[#74869C] hover:text-[#F1F5FA]" aria-label="Toggle layer controls">
+            {layersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
         </div>
 
-        {/* Basemap Switcher */}
-        <div className="pt-0.5 pb-1 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800/80">
-          <span>Basemap Style:</span>
-          <div className="flex gap-1 font-mono text-[10px]">
-            <button
-              onClick={() => setBasemapKey("positron")}
-              className={`px-1.5 py-0.5 rounded ${
-                basemapKey === "positron" ? "bg-cyan-500 text-white font-bold" : "bg-slate-800 text-slate-300"
-              }`}
-            >
-              Positron
-            </button>
-            <button
-              onClick={() => setBasemapKey("osm")}
-              className={`px-1.5 py-0.5 rounded ${
-                basemapKey === "osm" ? "bg-cyan-500 text-white font-bold" : "bg-slate-800 text-slate-300"
-              }`}
-            >
-              OSM
-            </button>
-          </div>
-        </div>
+        {layersOpen && (
+          <div className="p-3 pt-0 space-y-2 border-t border-[#26374B]/60">
+            {/* Basemap Style Selector */}
+            <div className="pt-2 pb-2 flex items-center justify-between text-[11px] text-[#A5B3C4] border-b border-[#26374B]/40">
+              <span className="font-medium">Basemap:</span>
+              <div className="flex gap-1 font-mono text-[10px]">
+                <button
+                  onClick={() => setBasemapKey("positron")}
+                  className={`px-2 py-0.5 rounded transition-colors ${
+                    basemapKey === "positron"
+                      ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                      : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
+                  }`}
+                >
+                  Positron
+                </button>
+                <button
+                  onClick={() => setBasemapKey("osm")}
+                  className={`px-2 py-0.5 rounded transition-colors ${
+                    basemapKey === "osm"
+                      ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                      : "bg-[#121F31] text-[#A5B3C4] hover:text-[#F1F5FA]"
+                  }`}
+                >
+                  OSM
+                </button>
+              </div>
+            </div>
 
-        {/* 1. Target Airports (Default ON) */}
-        <button
-          onClick={() => setShowTargetAirports(!showTargetAirports)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showTargetAirports ? (
-              <CheckSquare className="w-3.5 h-3.5 text-red-500" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 mr-1.5 border border-white/50"></span>
-              Target Airports
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-slate-400 font-semibold">3 (EBBR, EBLG, EBCI)</span>
-        </button>
+            {/* Aerodromes Group */}
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-mono font-semibold text-[#74869C] tracking-wider block">
+                Aerodromes
+              </span>
 
-        {/* 2. All Aerodromes (Default OFF) */}
-        <button
-          onClick={() => setShowOtherAirports(!showOtherAirports)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showOtherAirports ? (
-              <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>
-              Secondary Aerodromes
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-slate-400">{airports.length - 3}</span>
-        </button>
+              {/* 1. Target Airports (Default ON) */}
+              <button
+                onClick={() => setShowTargetAirports(!showTargetAirports)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showTargetAirports ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#F16C78]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#F16C78] mr-1.5 border border-white/60"></span>
+                    Target Airports
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C] font-semibold">
+                  3 (EBBR, EBLG, EBCI)
+                </span>
+              </button>
 
-        {/* 3. Controlled Airspace (CTA / TMA) */}
-        <button
-          onClick={() => setShowTmaCta(!showTmaCta)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showTmaCta ? (
-              <CheckSquare className="w-3.5 h-3.5 text-blue-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-2.5 h-1.5 bg-blue-500/60 border border-blue-400 mr-1.5 inline-block"></span>
-              Control Areas (TMA / CTA)
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-slate-400">{tmaCtaAirspaces.length} verified</span>
-        </button>
+              {/* 2. Secondary Aerodromes (Default OFF) */}
+              <button
+                onClick={() => setShowOtherAirports(!showOtherAirports)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showOtherAirports ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#47C995]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 rounded-full bg-[#47C995] mr-1.5"></span>
+                    Secondary Aerodromes
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C]">
+                  {Math.max(0, airports.length - 3)}
+                </span>
+              </button>
+            </div>
 
-        {/* 4. Special-Use Airspace (Restricted EBR & Danger EBD) */}
-        <button
-          onClick={() => setShowRestricted(!showRestricted)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showRestricted ? (
-              <CheckSquare className="w-3.5 h-3.5 text-rose-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-2.5 h-1.5 bg-rose-500/60 border border-rose-400 mr-1.5 inline-block"></span>
-              Special-Use (EBR / EBD)
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-slate-400">{specialUseAirspaces.length} verified</span>
-        </button>
+            {/* Airspace Group */}
+            <div className="space-y-1 pt-1 border-t border-[#26374B]/40">
+              <span className="text-[10px] uppercase font-mono font-semibold text-[#74869C] tracking-wider block">
+                Airspace
+              </span>
 
-        {/* 5. ATS Airways Network (Default OFF) */}
-        <button
-          onClick={() => setShowRoutes(!showRoutes)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showRoutes ? (
-              <CheckSquare className="w-3.5 h-3.5 text-amber-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-3 h-0.5 bg-amber-500 mr-1.5 inline-block"></span>
-              Full ATS Route Network
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-slate-400">{routes.length}</span>
-        </button>
+              {/* 3. Controlled Airspace (CTA / TMA) */}
+              <button
+                onClick={() => setShowTmaCta(!showTmaCta)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showTmaCta ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#6C9EFF]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-2.5 h-1.5 bg-[#6C9EFF]/50 border border-[#6C9EFF] mr-1.5 inline-block"></span>
+                    Control Areas (TMA/CTA)
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C]">
+                  {tmaCtaAirspaces.length} verified
+                </span>
+              </button>
 
-        {/* 6. Radio Navaids (Default OFF) */}
-        <button
-          onClick={() => setShowNavaids(!showNavaids)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showNavaids ? (
-              <CheckSquare className="w-3.5 h-3.5 text-purple-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-2 h-2 rounded-sm bg-purple-500 mr-1.5"></span>
-              Radio Navaids
-            </span>
-          </div>
-          <span className="font-mono text-[10px] text-slate-400">{navaids.length}</span>
-        </button>
+              {/* 4. Special-Use Airspace (EBR / EBD) */}
+              <button
+                onClick={() => setShowRestricted(!showRestricted)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showRestricted ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#F16C78]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-2.5 h-1.5 bg-[#F16C78]/50 border border-[#F16C78] mr-1.5 inline-block"></span>
+                    Special-Use (EBR/EBD)
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C]">
+                  {specialUseAirspaces.length} verified
+                </span>
+              </button>
+            </div>
 
-        {/* 7. Waypoints (Default OFF) */}
-        <button
-          onClick={() => setShowWaypoints(!showWaypoints)}
-          className="flex items-center justify-between w-full text-slate-300 hover:text-white py-0.5"
-        >
-          <div className="flex items-center space-x-2">
-            {showWaypoints ? (
-              <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
-            ) : (
-              <Square className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="flex items-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1.5"></span>
-              Waypoints (ENR 4.4)
-            </span>
+            {/* Routes & Navigation Group */}
+            <div className="space-y-1 pt-1 border-t border-[#26374B]/40">
+              <span className="text-[10px] uppercase font-mono font-semibold text-[#74869C] tracking-wider block">
+                Routes &amp; Navigation
+              </span>
+
+              {/* 5. ATS Airways Network (Default OFF) */}
+              <button
+                onClick={() => setShowRoutes(!showRoutes)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showRoutes ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#E9B45B]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-3 h-0.5 bg-[#E9B45B] mr-1.5 inline-block"></span>
+                    Full ATS Network
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C]">{routes.length}</span>
+              </button>
+
+              {/* 6. Radio Navaids (Default OFF) */}
+              <button
+                onClick={() => setShowNavaids(!showNavaids)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showNavaids ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#A855F7]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 rounded-sm bg-[#A855F7] mr-1.5"></span>
+                    Radio Navaids
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C]">{navaids.length}</span>
+              </button>
+
+              {/* 7. Waypoints (Default OFF) */}
+              <button
+                onClick={() => setShowWaypoints(!showWaypoints)}
+                className="flex items-center justify-between w-full text-[#A5B3C4] hover:text-[#F1F5FA] py-1 rounded px-1 hover:bg-[#121F31]/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  {showWaypoints ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-[#37C9D6]" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-[#74869C]" />
+                  )}
+                  <span className="flex items-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#37C9D6] mr-1.5"></span>
+                    Waypoints (ENR 4.4)
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-[#74869C]">{waypoints.length}</span>
+              </button>
+            </div>
           </div>
-          <span className="font-mono text-[10px] text-slate-400">{waypoints.length}</span>
-        </button>
+        )}
       </div>
 
-      {/* Selected Feature Provenance Card (Left Bottom) */}
+      {/* Selected Feature Provenance / Details Panel (Left Bottom) */}
       {selectedFeature && (
-        <div className="absolute bottom-6 left-4 z-[1000]">
+        <div className="absolute bottom-5 left-4 z-[1000] pointer-events-auto max-h-[calc(100vh-140px)] overflow-y-auto">
           {selectedFeature.type === "airport" && (
             <ProvenanceCard
               title={selectedFeature.data.name}
@@ -506,7 +606,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
           {selectedFeature.type === "route" && (
             <ProvenanceCard
               title={`Airway ${selectedFeature.data.designator}`}
-              subtitle={`Navigation Specification: ${selectedFeature.data.rnp_type}`}
+              subtitle={`Navigation Spec: ${selectedFeature.data.rnp_type}`}
               entityType="ATS Airway"
               entityKey={selectedFeature.data.designator}
               provenance={selectedFeature.data.provenance}
@@ -586,29 +686,30 @@ export const MapViewer: React.FC<MapViewerProps> = ({
 
       {/* Unresolved Airspace Modal / Drawer */}
       {showUnresolvedAirspace && (
-        <div className="absolute inset-y-0 right-0 z-[1100] w-96 bg-slate-900/98 backdrop-blur-md border-l border-slate-800 shadow-2xl p-5 overflow-y-auto text-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="absolute inset-y-0 right-0 z-[1100] w-96 bg-[#0D1726]/98 backdrop-blur-md border-l border-[#26374B] shadow-2xl p-5 overflow-y-auto text-xs space-y-4 pointer-events-auto">
+          <div className="flex items-center justify-between border-b border-[#26374B] pb-3">
             <div className="flex items-center space-x-2">
-              <ShieldAlert className="w-5 h-5 text-amber-400" />
+              <ShieldAlert className="w-5 h-5 text-[#E9B45B]" />
               <div>
-                <h3 className="font-bold text-white text-sm">Airspace Verification Log</h3>
-                <p className="text-[10px] text-slate-400">Deterministic Boundary Integrity State</p>
+                <h3 className="font-bold text-[#F1F5FA] text-sm">Airspace Verification Log</h3>
+                <p className="text-[10px] text-[#74869C]">Deterministic Boundary Integrity State</p>
               </div>
             </div>
             <button
               onClick={() => setShowUnresolvedAirspace(false)}
-              className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 font-bold"
+              className="text-[#74869C] hover:text-[#F1F5FA] p-1 rounded hover:bg-[#121F31]"
+              aria-label="Close verification log"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="bg-amber-950/40 border border-amber-900/60 p-3 rounded-lg text-amber-200 text-[11px] leading-relaxed">
+          <div className="bg-[#E9B45B]/10 border border-[#E9B45B]/30 p-3 rounded-lg text-[#E9B45B] text-[11px] leading-relaxed">
             <b>Safety Notice:</b> In strict compliance with geospatial data engineering standards, CopilOPS never fabricates polygon coordinates or closes rings with guessed vertices. Airspaces that reference non-surveyed international borders or complex circular arcs are excluded from the visual vector layer and retained as verified text records below.
           </div>
 
-          <div className="space-y-3">
-            <div className="flex justify-between text-slate-400 font-mono text-[11px] pb-1 border-b border-slate-800">
+          <div className="space-y-2.5">
+            <div className="flex justify-between text-[#74869C] font-mono text-[11px] pb-1 border-b border-[#26374B]">
               <span>Excluded Airspaces ({unresolvedAirspaces.length})</span>
               <span>Reason</span>
             </div>
@@ -620,16 +721,16 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   setSelectedFeature({ type: "airspace", data: a });
                   setShowUnresolvedAirspace(false);
                 }}
-                className="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 hover:border-cyan-500/50 cursor-pointer transition space-y-1"
+                className="bg-[#070D18] p-2.5 rounded-lg border border-[#26374B] hover:border-[#37C9D6]/50 cursor-pointer transition-colors space-y-1"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-cyan-400">{a.designation}</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-800">
+                  <span className="font-mono font-bold text-[#37C9D6]">{a.designation}</span>
+                  <StatusBadge variant="amber" mono size="xs">
                     {a.validation_status}
-                  </span>
+                  </StatusBadge>
                 </div>
-                <div className="text-slate-200 text-[11px] font-semibold">{a.name}</div>
-                <div className="text-slate-400 text-[10px] font-mono truncate">{a.boundary_text}</div>
+                <div className="text-[#F1F5FA] text-[11px] font-semibold">{a.name}</div>
+                <div className="text-[#74869C] text-[10px] font-mono truncate">{a.boundary_text}</div>
               </div>
             ))}
           </div>
@@ -637,40 +738,48 @@ export const MapViewer: React.FC<MapViewerProps> = ({
       )}
 
       {/* Map Legend (Bottom Right) */}
-      <div className="absolute bottom-3 right-4 z-[900] bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 rounded-lg shadow-xl text-[10px] text-slate-300 space-y-1.5 hidden sm:block">
-        <div className="font-semibold text-slate-200 border-b border-slate-700/60 pb-1 flex items-center justify-between gap-4">
-          <span>Map Hierarchy Legend</span>
-          <span className="text-slate-400 font-normal">CartoDB Positron</span>
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 border border-white"></span>
-            <span>Target Airport</span>
+      <div className="absolute bottom-3 right-4 z-[900] bg-[#0D1726]/95 backdrop-blur-sm border border-[#26374B] rounded-lg shadow-xl text-[10px] text-[#A5B3C4] pointer-events-auto hidden sm:block">
+        <button
+          onClick={() => setLegendOpen(!legendOpen)}
+          className="w-full p-2 flex items-center justify-between gap-3 text-left hover:text-[#F1F5FA] font-medium"
+        >
+          <span className="font-semibold text-[#F1F5FA]">Map Legend</span>
+          <span className="text-[10px] text-[#74869C]">Positron</span>
+        </button>
+
+        {legendOpen && (
+          <div className="p-2.5 pt-0 border-t border-[#26374B]/60 space-y-1.5">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px]">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F16C78] border border-white"></span>
+                <span>Target Airport</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#47C995]"></span>
+                <span>Aerodrome</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-1.5 bg-[#6C9EFF]/40 border border-[#6C9EFF] inline-block"></span>
+                <span>CTA / TMA</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-1.5 bg-[#F16C78]/50 border border-[#F16C78] inline-block"></span>
+                <span>Restricted (EBR)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-0.5 bg-[#E9B45B] inline-block"></span>
+                <span>ATS Airway</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-[#A855F7] rounded-sm inline-block"></span>
+                <span>Navaid</span>
+              </div>
+            </div>
+            <div className="text-[9px] text-[#74869C] pt-1 border-t border-[#26374B]/40">
+              Aeronautical data reference &bull; Not for navigation
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Aerodrome</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-1.5 bg-blue-500/40 border border-blue-400 inline-block"></span>
-            <span>CTA / TMA</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-1.5 bg-rose-500/50 border border-rose-400 inline-block"></span>
-            <span>Restricted (EBR)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-amber-500 inline-block"></span>
-            <span>ATS Airway</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 bg-purple-500 rounded-sm inline-block"></span>
-            <span>Navaid</span>
-          </div>
-        </div>
-        <div className="text-[9px] text-slate-400 pt-0.5 border-t border-slate-800">
-          Geographic reference only. Not for in-flight navigation.
-        </div>
+        )}
       </div>
 
       {/* Main Leaflet Map Container */}
@@ -705,9 +814,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                 key={air.id}
                 positions={positions}
                 pathOptions={{
-                  color: isSelected ? "#06b6d4" : "#2563eb",
-                  fillColor: isSelected ? "#06b6d4" : "#3b82f6",
-                  fillOpacity: isSelected ? 0.35 : 0.12,
+                  color: isSelected ? "#37C9D6" : "#4A7BD5",
+                  fillColor: isSelected ? "#37C9D6" : "#6C9EFF",
+                  fillOpacity: isSelected ? 0.35 : 0.10,
                   weight: isSelected ? 2.5 : 1.2,
                   dashArray: "4 3",
                 }}
@@ -731,8 +840,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
             const positions = air.geometry.coordinates[0].map((pt: number[]) => [pt[1], pt[0]] as [number, number]);
             const isSelected = selectedFeature?.type === "airspace" && selectedFeature?.data?.id === air.id;
             const isDanger = air.airspace_type === "DANGER";
-            const color = isSelected ? "#06b6d4" : isDanger ? "#ea580c" : "#e11d48";
-            const fillColor = isSelected ? "#06b6d4" : isDanger ? "#f97316" : "#f43f5e";
+            const color = isSelected ? "#37C9D6" : isDanger ? "#E9B45B" : "#F16C78";
+            const fillColor = isSelected ? "#37C9D6" : isDanger ? "#E9B45B" : "#F16C78";
 
             return (
               <Polygon
@@ -741,7 +850,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                 pathOptions={{
                   color: color,
                   fillColor: fillColor,
-                  fillOpacity: isSelected ? 0.4 : 0.2,
+                  fillOpacity: isSelected ? 0.4 : 0.18,
                   weight: isSelected ? 3 : 1.8,
                   dashArray: isDanger ? "6 3" : undefined,
                 }}
@@ -769,9 +878,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   key={`all-${rt.designator}-${sIdx}`}
                   positions={seg.coordinates as [number, number][]}
                   pathOptions={{
-                    color: isRouteHighlighted ? "#06b6d4" : selectedRouteName ? "#94a3b8" : "#f59e0b",
+                    color: isRouteHighlighted ? "#37C9D6" : selectedRouteName ? "#94a3b8" : "#E9B45B",
                     weight: isRouteHighlighted ? 3.5 : selectedRouteName ? 1 : 1.8,
-                    opacity: isRouteHighlighted ? 1 : selectedRouteName ? 0.25 : 0.55,
+                    opacity: isRouteHighlighted ? 1 : selectedRouteName ? 0.25 : 0.65,
                   }}
                   eventHandlers={{
                     click: () => {
@@ -791,7 +900,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
             });
           })}
 
-        {/* 4. Single Selected Route Highlight (Phase 2.3) */}
+        {/* 4. Single Selected Route Highlight */}
         {activeRoute && !showRoutes &&
           activeRoute.segments.map((seg, sIdx) => {
             if (!seg.coordinates || seg.coordinates.length < 2) return null;
@@ -800,7 +909,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                 key={`sel-${activeRoute.designator}-${sIdx}`}
                 positions={seg.coordinates as [number, number][]}
                 pathOptions={{
-                  color: "#0284c7",
+                  color: "#37C9D6",
                   weight: 3.5,
                   opacity: 0.95,
                 }}
@@ -828,8 +937,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                 center={[nav.latitude, nav.longitude]}
                 radius={isSelected ? 6 : 4}
                 pathOptions={{
-                  color: isSelected ? "#06b6d4" : "#9333ea",
-                  fillColor: isSelected ? "#0891b2" : "#a855f7",
+                  color: isSelected ? "#37C9D6" : "#7E22CE",
+                  fillColor: isSelected ? "#37C9D6" : "#A855F7",
                   fillOpacity: 0.9,
                   weight: isSelected ? 2.5 : 1.5,
                 }}
@@ -854,8 +963,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                 center={[wp.latitude, wp.longitude]}
                 radius={isSelected ? 5 : 2.5}
                 pathOptions={{
-                  color: isSelected ? "#06b6d4" : "#0284c7",
-                  fillColor: isSelected ? "#22d3ee" : "#38bdf8",
+                  color: isSelected ? "#37C9D6" : "#0284C7",
+                  fillColor: isSelected ? "#37C9D6" : "#38BDF8",
                   fillOpacity: 0.85,
                   weight: 1,
                 }}
@@ -882,9 +991,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   center={[ad.latitude!, ad.longitude!]}
                   radius={isSelected ? 7 : 4.5}
                   pathOptions={{
-                    color: isSelected ? "#06b6d4" : "#059669",
-                    fillColor: isSelected ? "#22d3ee" : "#10b981",
-                    fillOpacity: 0.8,
+                    color: isSelected ? "#37C9D6" : "#059669",
+                    fillColor: isSelected ? "#37C9D6" : "#47C995",
+                    fillOpacity: 0.85,
                     weight: isSelected ? 2.5 : 1.2,
                   }}
                   eventHandlers={{
@@ -910,8 +1019,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   center={[ad.latitude!, ad.longitude!]}
                   radius={isSelected ? 11 : 8.5}
                   pathOptions={{
-                    color: isSelected ? "#06b6d4" : "#b91c1c",
-                    fillColor: isSelected ? "#0891b2" : "#dc2626",
+                    color: isSelected ? "#37C9D6" : "#991B1B",
+                    fillColor: isSelected ? "#37C9D6" : "#F16C78",
                     fillOpacity: 0.95,
                     weight: isSelected ? 3.5 : 2.5,
                   }}
@@ -920,55 +1029,57 @@ export const MapViewer: React.FC<MapViewerProps> = ({
                   }}
                 >
                   <Tooltip permanent direction="top" offset={[0, -10]}>
-                    <span className="font-mono font-bold text-xs text-red-700 bg-white/95 px-1.5 py-0.5 rounded shadow border border-red-300">
+                    <span className="font-mono font-bold text-xs text-[#F16C78] bg-[#0D1726] px-1.5 py-0.5 rounded shadow border border-[#26374B]">
                       {ad.icao}
                     </span>
                   </Tooltip>
 
                   <Popup>
-                    <div className="p-2 font-sans text-xs min-w-[250px] space-y-2">
-                      <div className="flex items-center justify-between border-b border-slate-700 pb-1">
+                    <div className="p-3 font-sans text-xs min-w-[260px] space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-[#26374B] pb-1.5">
                         <div>
-                          <span className="font-mono font-extrabold text-base text-red-500">{ad.icao}</span>
-                          <span className="text-[10px] text-slate-400 block font-semibold">{ad.name}</span>
+                          <span className="font-mono font-extrabold text-base text-[#F16C78]">{ad.icao}</span>
+                          <span className="text-[11px] text-[#A5B3C4] block font-semibold">{ad.name}</span>
                         </div>
-                        <span className="text-[9px] bg-red-950 text-red-300 border border-red-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                          PRIMARY TARGET
-                        </span>
+                        <StatusBadge variant="red" mono size="xs">
+                          TARGET
+                        </StatusBadge>
                       </div>
 
-                      <div className="text-[11px] text-slate-300">
-                        Operator: <b className="text-white">{ad.operator}</b>
+                      <div className="text-[11px] text-[#A5B3C4]">
+                        Operator: <b className="text-[#F1F5FA] font-medium">{ad.operator || "Not published"}</b>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-300 bg-slate-900 p-2 rounded border border-slate-800">
-                        <div>Elevation: <b className="text-white">{ad.elevation ?? "—"} FT</b></div>
-                        <div>RFFS: <b className="text-white">{ad.rffs_category || "Not published"}</b></div>
-                        <div>Mag Var: <b className="text-white">{ad.magnetic_variation ?? "—"}°</b></div>
-                        <div>ATS Hours: <b className="text-white">{ad.hours?.ats || "Not published"}</b></div>
+                      <div className="grid grid-cols-2 gap-1.5 text-[11px] text-[#A5B3C4] bg-[#070D18] p-2 rounded-lg border border-[#26374B]">
+                        <div>Elevation: <b className="text-[#F1F5FA] font-mono">{ad.elevation ?? "—"} FT</b></div>
+                        <div>RFFS: <b className="text-[#F1F5FA] font-mono">{ad.rffs_category || "Not published"}</b></div>
+                        <div>Mag Var: <b className="text-[#F1F5FA] font-mono">{ad.magnetic_variation ?? "—"}°</b></div>
+                        <div>ATS Hours: <b className="text-[#F1F5FA] font-mono">{ad.hours?.ats || "Not published"}</b></div>
                       </div>
 
-                      <div className="pt-1">
-                        <span className="text-slate-400 text-[10px] font-semibold">Published Runways:</span>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {ad.runways.map((r) => (
-                            <span key={r.designator} className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px] font-mono text-cyan-300">
-                              RWY {r.designator} ({r.lda ?? "—"}M)
-                            </span>
-                          ))}
+                      {ad.runways && ad.runways.length > 0 && (
+                        <div className="pt-0.5">
+                          <span className="text-[#74869C] text-[10px] font-semibold uppercase tracking-wider">Published Runways:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {ad.runways.map((r) => (
+                              <span key={r.designator} className="bg-[#121F31] border border-[#26374B] px-1.5 py-0.5 rounded text-[10px] font-mono text-[#37C9D6]">
+                                RWY {r.designator} ({r.lda ?? "—"}M)
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      <div className="flex gap-2 pt-1">
+                      <div className="flex gap-2 pt-1 border-t border-[#26374B]/60">
                         <button
                           onClick={() => onSelectAirport && onSelectAirport(ad.icao)}
-                          className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-1 px-2 rounded text-xs transition text-center"
+                          className="flex-1 bg-[#37C9D6] hover:bg-[#37C9D6]/90 text-[#070D18] font-bold py-1 px-2 rounded-md text-xs transition text-center"
                         >
                           Open Cockpit &rarr;
                         </button>
                         <button
                           onClick={() => setSelectedFeature({ type: "airport", data: ad })}
-                          className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded text-xs border border-slate-700"
+                          className="bg-[#121F31] hover:bg-[#17263A] text-[#F1F5FA] px-2.5 py-1 rounded-md text-xs border border-[#26374B]"
                         >
                           Provenance
                         </button>

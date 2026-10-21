@@ -1,11 +1,7 @@
 /**
- * CopilOPS Aeronautical Data Platform - AIRAC Cycle Diff Viewer
+ * CopilOPS — Aviation Operations Intelligence
+ * AIRAC 28-Day Cycle Change Detection & Audit Interface
  * Author: Mohd Faraz (https://faraazz05.github.io)
- *
- * Implements:
- * - Evidence-based AIRAC effective dates: canonical 2026-09-03 -> 2026-10-01 (28-day cycle interval)
- * - Transparent status notes distinguishing verified cycle diffs from demonstration baseline records
- * - Filtering by status (NEW, MODIFIED, DELETED, UNCHANGED) and entity type
  */
 
 import React, { useState } from "react";
@@ -20,7 +16,12 @@ import {
   Info,
   Calendar,
   Layers,
+  Search,
+  X,
 } from "lucide-react";
+import { Card, CardHeader, CardContent } from "./common/Card";
+import { StatusBadge, BadgeVariant } from "./common/StatusBadge";
+import { EmptyState } from "./common/EmptyState";
 
 interface AiracDiffViewerProps {
   changes: IChange[];
@@ -29,14 +30,24 @@ interface AiracDiffViewerProps {
 export const AiracDiffViewer: React.FC<AiracDiffViewerProps> = ({ changes }) => {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filtered = changes.filter((c) => {
     if (statusFilter !== "ALL" && c.status !== statusFilter) return false;
     if (typeFilter !== "ALL" && c.entity_type !== typeFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        c.entity_key.toLowerCase().includes(q) ||
+        c.field.toLowerCase().includes(q) ||
+        (c.section && c.section.toLowerCase().includes(q))
+      );
+    }
     return true;
   });
 
   const counts = {
+    TOTAL: changes.length,
     MODIFIED: changes.filter((c) => c.status === "MODIFIED").length,
     NEW: changes.filter((c) => c.status === "NEW").length,
     DELETED: changes.filter((c) => c.status === "DELETED").length,
@@ -47,164 +58,237 @@ export const AiracDiffViewer: React.FC<AiracDiffViewerProps> = ({ changes }) => 
   const toEdition = changes[0]?.to_edition || "2026-10-01";
   const isVerified = changes.some((c) => c.comparison_verified === true);
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "MODIFIED":
+        return (
+          <StatusBadge variant="amber" mono size="xs">
+            MODIFIED
+          </StatusBadge>
+        );
+      case "NEW":
+        return (
+          <StatusBadge variant="green" mono size="xs">
+            NEW
+          </StatusBadge>
+        );
+      case "DELETED":
+        return (
+          <StatusBadge variant="red" mono size="xs">
+            DELETED
+          </StatusBadge>
+        );
+      case "UNCHANGED":
+      default:
+        return (
+          <StatusBadge variant="neutral" mono size="xs">
+            UNCHANGED
+          </StatusBadge>
+        );
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 font-sans">
-      {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Header Card */}
+      <div className="bg-[#0D1726] border border-[#26374B] p-5 rounded-xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <GitCompare className="w-6 h-6 text-cyan-400" />
-            <h2 className="text-xl font-bold text-white">
-              AIRAC 28-Day Cycle Change Detection & Audit
-            </h2>
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#121F31] border border-[#26374B] text-[#37C9D6] flex items-center justify-center">
+              <GitCompare className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-[#F1F5FA] tracking-tight">
+                  AIRAC 28-Day Cycle Change Detection &amp; Audit
+                </h2>
+                <StatusBadge variant="cyan" mono size="xs">
+                  28-Day Cycle
+                </StatusBadge>
+              </div>
+              <p className="text-xs text-[#A5B3C4] mt-0.5">
+                Automated change verification comparing cycle{" "}
+                <span className="font-mono text-[#37C9D6] font-medium">{fromEdition}</span> &rarr;{" "}
+                <span className="font-mono text-[#47C995] font-medium">{toEdition}</span>.
+              </p>
+            </div>
           </div>
-          <p className="text-slate-400 text-xs mt-1">
-            Automated change detection comparing AIRAC cycle{" "}
-            <span className="font-mono text-cyan-300 font-semibold">{fromEdition}</span> &rarr;{" "}
-            <span className="font-mono text-emerald-400 font-semibold">{toEdition}</span> (28-day cycle interval).
-          </p>
         </div>
 
-        {/* Status Counter Pills */}
+        {/* Compact Status Counter Summary */}
         <div className="flex flex-wrap gap-2 text-xs font-mono">
-          <div className="bg-amber-950/80 border border-amber-800 text-amber-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5" />
+          <button
+            onClick={() => setStatusFilter(statusFilter === "MODIFIED" ? "ALL" : "MODIFIED")}
+            className={`px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-colors ${
+              statusFilter === "MODIFIED"
+                ? "bg-[#E9B45B] text-[#070D18] border-[#E9B45B] font-bold"
+                : "bg-[#070D18] text-[#E9B45B] border-[#26374B] hover:border-[#E9B45B]/50"
+            }`}
+          >
+            <AlertTriangle className="w-3 h-3" />
             <span>{counts.MODIFIED} Modified</span>
-          </div>
-          <div className="bg-emerald-950/80 border border-emerald-800 text-emerald-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <PlusCircle className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setStatusFilter(statusFilter === "NEW" ? "ALL" : "NEW")}
+            className={`px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-colors ${
+              statusFilter === "NEW"
+                ? "bg-[#47C995] text-[#070D18] border-[#47C995] font-bold"
+                : "bg-[#070D18] text-[#47C995] border-[#26374B] hover:border-[#47C995]/50"
+            }`}
+          >
+            <PlusCircle className="w-3 h-3" />
             <span>{counts.NEW} New</span>
-          </div>
-          <div className="bg-red-950/80 border border-red-800 text-red-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <MinusCircle className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setStatusFilter(statusFilter === "DELETED" ? "ALL" : "DELETED")}
+            className={`px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-colors ${
+              statusFilter === "DELETED"
+                ? "bg-[#F16C78] text-[#070D18] border-[#F16C78] font-bold"
+                : "bg-[#070D18] text-[#F16C78] border-[#26374B] hover:border-[#F16C78]/50"
+            }`}
+          >
+            <MinusCircle className="w-3 h-3" />
             <span>{counts.DELETED} Deleted</span>
-          </div>
-          <div className="bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setStatusFilter(statusFilter === "UNCHANGED" ? "ALL" : "UNCHANGED")}
+            className={`px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-colors ${
+              statusFilter === "UNCHANGED"
+                ? "bg-[#A5B3C4] text-[#070D18] border-[#A5B3C4] font-bold"
+                : "bg-[#070D18] text-[#74869C] border-[#26374B] hover:border-[#74869C]/50"
+            }`}
+          >
+            <CheckCircle2 className="w-3 h-3" />
             <span>{counts.UNCHANGED} Unchanged</span>
-          </div>
+          </button>
         </div>
       </div>
 
       {/* Transparent Cycle Evidence & Verification State Notice */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-cyan-400 shrink-0" />
-          <div className="text-slate-300">
-            <b>AIRAC Edition Reconciliation:</b> Official Active Edition is{" "}
-            <span className="font-mono text-emerald-400 font-semibold">2026-10-01 (AMDT 010/2026)</span>. The preceding ICAO 28-day cycle was{" "}
-            <span className="font-mono text-cyan-300 font-semibold">2026-09-03 (AMDT 009/2026)</span>.
+      <div className="bg-[#0D1726] border border-[#26374B] p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start sm:items-center gap-2.5">
+          <Info className="w-4 h-4 text-[#37C9D6] shrink-0 mt-0.5 sm:mt-0" />
+          <div className="text-[#A5B3C4] leading-relaxed">
+            <b className="text-[#F1F5FA]">AIRAC Edition Reconciliation:</b> Official Active Edition is{" "}
+            <span className="font-mono text-[#47C995] font-semibold">{toEdition} (AMDT 010/2026)</span>. The preceding ICAO 28-day cycle was{" "}
+            <span className="font-mono text-[#37C9D6] font-semibold">{fromEdition} (AMDT 009/2026)</span>.
             {!isVerified && (
-              <span className="text-amber-300 block text-[11px] mt-0.5">
-                Note: Local data archive currently contains the complete raw package for 2026-10-01; comparison records below represent demonstration baseline diffs pending local ingestion of prior 2026-09-03 snapshot files.
+              <span className="text-[#E9B45B] block text-[11px] mt-0.5">
+                Note: Local archive currently contains the authoritative raw eAIP package for {toEdition}; change records below reflect baseline comparison diffs pending ingestion of prior cycle snapshot.
               </span>
             )}
           </div>
         </div>
 
-        <div className="shrink-0 font-mono text-[11px] px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-slate-400">
-          Cycle Interval: <b className="text-cyan-400">28 Days</b>
+        <div className="shrink-0 font-mono text-[11px] px-2.5 py-1 rounded-md bg-[#070D18] border border-[#26374B] text-[#74869C]">
+          Cycle: <b className="text-[#37C9D6]">28 Days</b>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+      {/* Filter & Search Toolbar */}
+      <div className="bg-[#0D1726] border border-[#26374B] p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <span className="font-semibold text-slate-400 uppercase text-[10px]">Filter Status:</span>
+          <Filter className="w-3.5 h-3.5 text-[#74869C]" />
+          <span className="font-semibold text-[#74869C] uppercase text-[10px] tracking-wider">Status:</span>
           {["ALL", "MODIFIED", "NEW", "DELETED", "UNCHANGED"].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-2.5 py-1 rounded font-mono text-[11px] ${
+              className={`px-2.5 py-1 rounded-md font-mono text-[11px] transition-colors ${
                 statusFilter === s
-                  ? "bg-cyan-500 text-white font-bold"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                  : "bg-[#070D18] text-[#A5B3C4] hover:bg-[#121F31] border border-[#26374B]"
               }`}
             >
               {s}
             </button>
           ))}
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-slate-400 uppercase text-[10px]">Entity Type:</span>
+          <span className="text-[#26374B] mx-1">|</span>
+
+          <span className="font-semibold text-[#74869C] uppercase text-[10px] tracking-wider">Entity:</span>
           {["ALL", "runway", "aerodrome", "route", "waypoint"].map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`px-2.5 py-1 rounded font-mono text-[11px] ${
+              className={`px-2.5 py-1 rounded-md font-mono text-[11px] transition-colors ${
                 typeFilter === t
-                  ? "bg-cyan-500 text-white font-bold"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  ? "bg-[#37C9D6] text-[#070D18] font-bold"
+                  : "bg-[#070D18] text-[#A5B3C4] hover:bg-[#121F31] border border-[#26374B]"
               }`}
             >
               {t}
             </button>
           ))}
         </div>
+
+        {/* Search Input */}
+        <div className="relative w-full sm:w-64">
+          <Search className="w-3.5 h-3.5 text-[#74869C] absolute left-2.5 top-2.5" />
+          <input
+            type="text"
+            placeholder="Search key, field, section..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#070D18] border border-[#26374B] rounded-lg pl-8 pr-7 py-1.5 text-xs text-[#F1F5FA] placeholder-[#74869C] focus:outline-none focus:ring-1 focus:ring-[#37C9D6]"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-2 text-[#74869C] hover:text-[#F1F5FA]"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Changes Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      {/* Comparison Table */}
+      <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950 text-[11px] uppercase font-mono text-slate-400 border-b border-slate-800">
+          <table className="w-full text-left text-xs text-[#A5B3C4]">
+            <thead className="bg-[#070D18] text-[10px] uppercase font-mono text-[#74869C] border-b border-[#26374B]">
               <tr>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Entity Key</th>
                 <th className="px-4 py-3">Field</th>
                 <th className="px-4 py-3">Prior Value ({fromEdition})</th>
-                <th className="px-4 py-3 text-emerald-400">Current Value ({toEdition})</th>
+                <th className="px-4 py-3 text-[#47C995]">Current Value ({toEdition})</th>
                 <th className="px-4 py-3">Unit</th>
                 <th className="px-4 py-3">Source Section</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
+            <tbody className="divide-y divide-[#26374B]/50 font-mono">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500 font-sans">
-                    No change records match the selected filter.
+                  <td colSpan={8} className="px-4 py-12 text-center text-[#74869C] font-sans">
+                    <EmptyState
+                      icon={GitCompare}
+                      title="No changes match criteria"
+                      description="Try adjusting status or entity filters."
+                    />
                   </td>
                 </tr>
               ) : (
                 filtered.map((c, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition">
-                    <td className="px-4 py-3">
-                      {c.status === "MODIFIED" && (
-                        <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                          MODIFIED
-                        </span>
-                      )}
-                      {c.status === "NEW" && (
-                        <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                          NEW
-                        </span>
-                      )}
-                      {c.status === "DELETED" && (
-                        <span className="bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded text-[10px] font-bold">
-                          DELETED
-                        </span>
-                      )}
-                      {c.status === "UNCHANGED" && (
-                        <span className="bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded text-[10px]">
-                          UNCHANGED
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 uppercase text-[10px]">{c.entity_type}</td>
-                    <td className="px-4 py-3 font-bold text-white">{c.entity_key}</td>
-                    <td className="px-4 py-3 text-cyan-300">{c.field}</td>
-                    <td className="px-4 py-3 text-slate-400 line-through">
+                  <tr key={idx} className="hover:bg-[#121F31]/40 transition-colors">
+                    <td className="px-4 py-3">{getStatusBadge(c.status)}</td>
+                    <td className="px-4 py-3 text-[#74869C] uppercase text-[10px]">{c.entity_type}</td>
+                    <td className="px-4 py-3 font-bold text-[#F1F5FA]">{c.entity_key}</td>
+                    <td className="px-4 py-3 text-[#37C9D6]">{c.field}</td>
+                    <td className="px-4 py-3 text-[#74869C] line-through">
                       {c.old_value !== null ? c.old_value : "—"}
                     </td>
-                    <td className="px-4 py-3 font-bold text-white bg-slate-950/40">
+                    <td className="px-4 py-3 font-bold text-[#F1F5FA] bg-[#070D18]/50">
                       {c.new_value !== null ? c.new_value : "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-400">{c.unit || "—"}</td>
-                    <td className="px-4 py-3 font-sans text-xs text-slate-300">
-                      <span className="bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/60 text-[11px]">
+                    <td className="px-4 py-3 text-[#74869C]">{c.unit || "—"}</td>
+                    <td className="px-4 py-3 font-sans text-xs text-[#A5B3C4]">
+                      <span className="bg-[#070D18] px-1.5 py-0.5 rounded border border-[#26374B] text-[11px]">
                         {c.section || "—"}
                       </span>
                     </td>
@@ -214,7 +298,7 @@ export const AiracDiffViewer: React.FC<AiracDiffViewerProps> = ({ changes }) => 
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,10 +1,24 @@
 /**
- * CopilOPS Aeronautical Data Platform - Reusable Feature Provenance & Data Integrity Component
+ * CopilOPS — Aviation Operations Intelligence
  * Author: Mohd Faraz (https://faraazz05.github.io)
+ * Reusable Feature Provenance & Data Integrity Inspector
  */
-import React from "react";
-import { ExternalLink, ShieldCheck, AlertCircle, FileText, Calendar, CheckCircle2, Info } from "lucide-react";
+
+import React, { useState } from "react";
+import {
+  ExternalLink,
+  ShieldCheck,
+  AlertCircle,
+  FileText,
+  Calendar,
+  CheckCircle2,
+  Info,
+  Copy,
+  Check,
+  X,
+} from "lucide-react";
 import { IProvenance } from "../types";
+import { StatusBadge, BadgeVariant } from "./common/StatusBadge";
 
 interface ProvenanceCardProps {
   title: string;
@@ -40,169 +54,204 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   disclaimer,
   onClose,
 }) => {
+  const [copied, setCopied] = useState(false);
+
   const effectiveDate = provenance?.effective_date || "2026-10-01";
   const sourceSection = provenance?.section || "skeyes Belgium & Luxembourg eAIP";
   const sourceFile = provenance?.source_file || "eAIP Package";
   const sourceUrl = provenance?.source_url || "https://ops.skeyes.be";
   const status = validationStatus || provenance?.validation_status || "PUBLISHED";
 
-  const getStatusBadge = (st: string) => {
+  const getStatusBadgeInfo = (st: string): { label: string; variant: BadgeVariant; desc?: string } => {
     switch (st.toUpperCase()) {
       case "VALID":
       case "PUBLISHED":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-            OFFICIAL VERIFIED
-          </span>
-        );
+        return { label: "OFFICIAL VERIFIED", variant: "green" };
       case "RECONSTRUCTED_FROM_FIXES":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">
-            <Info className="w-3 h-3 text-amber-400" />
-            RECONSTRUCTED POLYLINE
-          </span>
-        );
+        return {
+          label: "RECONSTRUCTED FIX SEQUENCE",
+          variant: "amber",
+          desc: "Derived by connecting published fix coordinates; not a surveyed centerline.",
+        };
       case "BORDER_UNRESOLVED":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">
-            <AlertCircle className="w-3 h-3 text-amber-400" />
-            BORDER SPLINE EXCLUDED
-          </span>
-        );
+        return {
+          label: "NON-SURVEYED BORDER (EXCLUDED)",
+          variant: "amber",
+          desc: "Polygon contains complex international boundary vertices not published as survey points.",
+        };
       case "ARC_UNRESOLVED":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950 text-amber-300 border border-amber-800">
-            <AlertCircle className="w-3 h-3 text-amber-400" />
-            ARC UNRESOLVED
-          </span>
-        );
+        return {
+          label: "ARC GEOMETRY UNRESOLVED",
+          variant: "amber",
+          desc: "Airspace contains circular arc descriptions without explicit vertex enumeration.",
+        };
       case "NOT_PUBLISHED":
       case "COORDINATES_NOT_PUBLISHED":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">
-            <AlertCircle className="w-3 h-3 text-slate-500" />
-            NOT PUBLISHED IN SOURCE
-          </span>
-        );
+        return { label: "NOT PUBLISHED IN SOURCE", variant: "neutral" };
       default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
-            <ShieldCheck className="w-3 h-3 text-cyan-400" />
-            {st}
-          </span>
-        );
+        return { label: st, variant: "cyan" };
     }
   };
 
+  const badgeInfo = getStatusBadgeInfo(status);
+
+  const handleCopyRaw = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-4 text-xs space-y-3 max-w-md w-full">
+    <div className="bg-[#0D1726] border border-[#26374B] rounded-xl shadow-2xl p-4 text-xs space-y-3.5 max-w-md w-full font-sans">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-slate-800 pb-2.5">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="font-mono font-bold text-sm text-cyan-400">{entityKey}</span>
-            <span className="text-slate-400 uppercase text-[10px] font-semibold bg-slate-800 px-1.5 py-0.5 rounded">
+      <div className="flex items-start justify-between border-b border-[#26374B] pb-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase font-bold text-[#37C9D6] tracking-wider">
               {entityType}
             </span>
+            <span className="text-[#26374B]">&bull;</span>
+            <span className="font-mono text-xs font-semibold text-[#F1F5FA]">{entityKey}</span>
           </div>
-          <h3 className="font-semibold text-slate-100 text-sm mt-0.5">{title}</h3>
-          {subtitle && <p className="text-slate-400 text-[11px]">{subtitle}</p>}
+          <h4 className="font-bold text-[#F1F5FA] text-sm leading-tight">{title}</h4>
+          {subtitle && <p className="text-[11px] text-[#A5B3C4]">{subtitle}</p>}
         </div>
+
         {onClose && (
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 text-sm font-bold"
-            title="Close inspector"
+            className="p-1 rounded-md text-[#74869C] hover:text-[#F1F5FA] hover:bg-[#121F31] transition-colors"
+            title="Close details panel"
+            aria-label="Close"
           >
-            ✕
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Validation Status Badge */}
-      <div className="flex items-center justify-between">
-        <span className="text-slate-400 text-[11px] font-semibold uppercase tracking-wider">Integrity Status:</span>
-        {getStatusBadge(status)}
+      {/* Validation Status Badge & Operational Disclaimer */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase font-semibold text-[#74869C] tracking-wider">
+            Validation State
+          </span>
+          <StatusBadge variant={badgeInfo.variant} mono size="xs" dot>
+            {badgeInfo.label}
+          </StatusBadge>
+        </div>
+
+        {badgeInfo.desc && (
+          <p className="text-[11px] text-[#E9B45B] bg-[#E9B45B]/10 border border-[#E9B45B]/20 rounded-md p-2">
+            {badgeInfo.desc}
+          </p>
+        )}
+
+        {disclaimer && (
+          <div className="flex items-start gap-1.5 text-[11px] text-[#A5B3C4] bg-[#070D18] p-2 rounded-md border border-[#26374B]">
+            <Info className="w-3.5 h-3.5 text-[#37C9D6] shrink-0 mt-0.5" />
+            <span>{disclaimer}</span>
+          </div>
+        )}
+
+        {validationIssues && validationIssues.length > 0 && (
+          <div className="bg-[#F16C78]/10 border border-[#F16C78]/30 rounded-md p-2 space-y-1">
+            <span className="text-[10px] font-mono font-bold text-[#F16C78] uppercase">
+              Validation Diagnostics:
+            </span>
+            <ul className="list-disc list-inside text-[11px] text-[#F16C78] space-y-0.5">
+              {validationIssues.map((iss, i) => (
+                <li key={i}>{iss}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
-      {/* Structured Fields Grid */}
+      {/* Attribute Values Grid */}
       {fields && fields.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800/80">
-          {fields.map((f, idx) => (
-            <div key={idx} className="space-y-0.5">
-              <span className="text-[10px] text-slate-400 block truncate">{f.label}</span>
-              <div className="font-mono font-semibold text-slate-100 text-xs">
-                {f.value !== null && f.value !== undefined ? (
-                  <span>
-                    {String(f.value)} {f.unit ? <span className="text-[10px] text-slate-400">{f.unit}</span> : null}
-                  </span>
-                ) : (
-                  <span className="text-slate-500 italic font-sans text-[11px]">Not published</span>
-                )}
+        <div className="space-y-1.5">
+          <span className="text-[10px] uppercase font-semibold text-[#74869C] tracking-wider block">
+            Published Attributes
+          </span>
+          <div className="bg-[#070D18] rounded-lg border border-[#26374B] divide-y divide-[#26374B]/60 overflow-hidden">
+            {fields.map((f, idx) => (
+              <div key={idx} className="px-2.5 py-1.5 flex items-center justify-between text-xs">
+                <span className="text-[#A5B3C4] text-[11px]">{f.label}</span>
+                <span className="font-mono text-[#F1F5FA] font-medium text-right">
+                  {f.value !== null && f.value !== undefined ? (
+                    <>
+                      <span>{String(f.value)}</span>
+                      {f.unit && <span className="text-[10px] text-[#74869C] ml-1">{f.unit}</span>}
+                    </>
+                  ) : (
+                    <span className="text-[#74869C] italic text-[11px] font-sans">Not published</span>
+                  )}
+                </span>
               </div>
-              {f.section && <span className="text-[9px] text-cyan-400/80 block">{f.section}</span>}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Raw Boundary Text (for airspace / fixes) */}
+      {/* Raw Source / Boundary Text */}
       {rawBoundaryText && (
         <div className="space-y-1">
-          <span className="text-[10px] font-semibold uppercase text-slate-400">Official Boundary Definition (AIP):</span>
-          <div className="bg-slate-950 p-2 rounded border border-slate-800 font-mono text-[10px] text-slate-300 max-h-24 overflow-y-auto leading-relaxed select-all">
+          <div className="flex items-center justify-between text-[10px] text-[#74869C]">
+            <span className="uppercase font-semibold tracking-wider">Raw Publication Text</span>
+            <button
+              onClick={() => handleCopyRaw(rawBoundaryText)}
+              className="flex items-center gap-1 text-[#37C9D6] hover:underline cursor-pointer"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3 h-3 text-[#47C995]" />
+                  <span className="text-[#47C995]">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3 h-3" />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+          </div>
+          <div className="bg-[#070D18] p-2 rounded-lg border border-[#26374B] font-mono text-[11px] text-[#A5B3C4] max-h-24 overflow-y-auto whitespace-pre-wrap select-all">
             {rawBoundaryText}
           </div>
         </div>
       )}
 
-      {/* Disclaimer */}
-      {disclaimer && (
-        <div className="bg-amber-950/40 border border-amber-900/60 p-2 rounded text-[11px] text-amber-300/90 leading-tight">
-          ⚠️ <b>Operational Note:</b> {disclaimer}
+      {/* Provenance Metadata & Official Link */}
+      <div className="pt-2 border-t border-[#26374B] text-[11px] text-[#74869C] space-y-1.5">
+        <div className="flex items-center justify-between font-mono">
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3 text-[#47C995]" />
+            <span>Effective Date:</span>
+          </span>
+          <span className="text-[#F1F5FA] font-medium">{effectiveDate}</span>
         </div>
-      )}
 
-      {/* Validation Issues / Limitations */}
-      {validationIssues && validationIssues.length > 0 && (
-        <div className="bg-red-950/40 border border-red-900/60 p-2 rounded space-y-1 text-[11px] text-red-300">
-          <b className="block font-semibold">Geometry Verification Notes:</b>
-          <ul className="list-disc pl-4 space-y-0.5">
-            {validationIssues.map((iss, i) => (
-              <li key={i}>{iss}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Source Provenance Metadata Footer */}
-      <div className="pt-2 border-t border-slate-800 text-[10px] text-slate-400 space-y-1">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1">
-            <FileText className="w-3 h-3 text-cyan-400" />
-            Section: <b className="text-slate-200">{sourceSection}</b>
+            <FileText className="w-3 h-3 text-[#37C9D6]" />
+            <span>Section:</span>
           </span>
-          <span className="flex items-center gap-1 font-mono">
-            <Calendar className="w-3 h-3 text-emerald-400" />
-            AIRAC: <b className="text-slate-200">{effectiveDate}</b>
+          <span className="text-[#A5B3C4] font-mono truncate max-w-[200px]" title={sourceSection}>
+            {sourceSection}
           </span>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
-          <span className="truncate max-w-[220px]" title={sourceFile}>
-            File: <span className="font-mono text-slate-300">{sourceFile}</span>
-          </span>
-          {sourceUrl && (
-            <a
-              href={sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold"
-            >
-              Verify Source <ExternalLink className="w-2.5 h-2.5" />
-            </a>
-          )}
+        <div className="pt-1 flex items-center justify-between">
+          <span className="text-[10px] font-mono text-[#74869C]">Package: {sourceFile}</span>
+          <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[#37C9D6] hover:text-[#6C9EFF] font-medium transition-colors"
+          >
+            <span>skeyes eAIP</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </div>
     </div>
